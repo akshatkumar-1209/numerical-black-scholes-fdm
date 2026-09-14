@@ -146,17 +146,19 @@ python programs/thomas_solver.py
 
 ---
 
-## 🗓️ Project Roadmap (12 Weeks)
+## 🗓️ Project Roadmap & Status (Aligned with 12-Week Tracker)
 
-- [x] **Week 1:** Mathematical foundations, continuous Black-Scholes PDE, analytical pricing, Greeks, put-call parity.
-- [x] **Week 2:** Taylor expansions, finite difference discretizations ($V_S, V_{SS}$), truncation error analysis, computational mesh generation.
-- [x] **Week 3:** Tridiagonal matrix systems, Thomas algorithm implementation, verification against standard linear algebra solvers.
-- [ ] **Week 4:** Derivation and coefficient assembly for the Fully Implicit Finite Difference Method.
-- [ ] **Week 5:** Implementation and time-stepping of the Fully Implicit scheme.
-- [ ] **Week 6:** Derivation and implementation of the Crank-Nicolson Method ($\theta = 1/2$).
-- [ ] **Week 7:** Comparison of Implicit vs Crank-Nicolson schemes; oscillation inspection near non-smooth payoff.
-- [ ] **Week 8:** Spatial and temporal mesh-refinement studies, Richardson extrapolation, observed order of convergence.
-- [ ] **Week 9:** Numerical Greek computation ($\Delta, \Gamma$) directly from discrete solution vectors.
-- [ ] **Week 10:** Stability and monotonicity analysis, maximum principle, M-matrix property validation.
-- [ ] **Week 11:** Performance benchmarking, runtime profiling, sparsity benefits of TDMA.
-- [ ] **Week 12:** Final consolidated report, presentation, and archival.
+| Week | Milestone / Topic | Focus & Deliverable | Status | % Done |
+|:---:|:---|:---|:---:|:---:|
+| **1** | **Black-Scholes Formulation & Benchmark** | Analytical Call/Put solver, Greeks ($\Delta, \Gamma$), put-call parity check | ✅ Completed | **100%** |
+| **2** | **Finite-Difference Foundations** | Taylor expansion derivations, $\mathcal{O}(h)$ vs $\mathcal{O}(h^2)$ empirical convergence | ✅ Completed | **100%** |
+| **3** | **Discrete Black-Scholes Operator** | Three-point spatial stencil, $lpha_j, eta_j, \gamma_j$ coefficients derivation | 🔄 In Progress | **80%** |
+| **4** | **Numerical Linear Algebra - Thomas Algorithm** | TDMA derivation, $\mathcal{O}(N)$ complexity, $4\times 4$ and $100\times 100$ verification | ✅ Completed | **100%** |
+| **5** | **Fully Implicit Black-Scholes Method** | Duffy Chapter 7 reading, boundary enforcement, implicit time-stepping solver | 🔄 In Progress | **25%** |
+| **6** | **Crank-Nicolson Scheme** | $\theta$-scheme derivation ($\\theta = 1/2$), matrix system assembly | ⏳ Not Started | **0%** |
+| **7** | **Verification & Error Measurement** | Pointwise, $L_2$, and $L_\infty$ error norms against analytical benchmark | ⏳ Not Started | **0%** |
+| **8** | **Stability & Convergence Studies** | Spatial/temporal mesh refinement, observed order of convergence | ⏳ Not Started | **0%** |
+| **9** | **Numerical Greeks Computation** | Finite-difference computation of Delta ($\Delta$) and Gamma ($\Gamma$) from discrete solution | ⏳ Not Started | **0%** |
+| **10** | **Monotonicity & Non-Oscillation** | Maximum principle, M-matrix property, mesh constraints | ⏳ Not Started | **0%** |
+| **11** | **Non-Smooth Payoff & Improved CN** | Strike alignment, Rannacher start-up damping | ⏳ Not Started | **0%** |
+| **12** | **Consolidation, Final Report & Presentation** | Codebase integration, reproduction tests, final project presentation | ⏳ Not Started | **0%** |

@@ -1,0 +1,44 @@
+﻿=======================================================
+  Grid Generation Verification
+  S_max=400, M=10, T=1, N=5
+=======================================================
+
+S-grid (M+1 = 11 points, dS = 40.0000):
+  [  0.  40.  80. 120. 160. 200. 240. 280. 320. 360. 400.]
+  S[0]  = 0.0000  (lower boundary)
+  S[-1] = 400.0000  (upper boundary)
+
+tau-grid (N+1 = 6 points, dtau = 0.2000):
+  [0.  0.2 0.4 0.6 0.8 1. ]
+
+Call payoff at tau=0 (max(S-K,0)):
+  S=0.0 -> payoff=0.0000
+  S=40.0 -> payoff=0.0000
+  S=80.0 -> payoff=0.0000
+  S=120.0 -> payoff=20.0000
+  S=160.0 -> payoff=60.0000
+  S=200.0 -> payoff=100.0000
+  S=240.0 -> payoff=140.0000
+  S=280.0 -> payoff=180.0000
+  S=320.0 -> payoff=220.0000
+  S=360.0 -> payoff=260.0000
+  S=400.0 -> payoff=300.0000
+
+Put payoff at tau=0 (max(K-S,0)):
+  S=0.0 -> payoff=100.0000
+  S=40.0 -> payoff=60.0000
+  S=80.0 -> payoff=20.0000
+  S=120.0 -> payoff=0.0000
+  S=160.0 -> payoff=0.0000
+  S=200.0 -> payoff=0.0000
+  S=240.0 -> payoff=0.0000
+  S=280.0 -> payoff=0.0000
+  S=320.0 -> payoff=0.0000
+  S=360.0 -> payoff=0.0000
+  S=400.0 -> payoff=0.0000
+
+Boundary condition checks:
+  Call at S=0   : 0.0000 (should be 0)
+  Call at S=Smax: 300.0000 (should be ~S_max-K=300.0)
+  Put  at S=0   : 100.0000 (should be K=100.0)
+  Put  at S=Smax: 0.0000 (should be ~0)

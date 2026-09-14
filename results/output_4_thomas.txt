@@ -1,0 +1,13 @@
+﻿============================================================
+  Thomas Algorithm Verification
+============================================================
+
+Test 1: 4x4 system  (exact solution = [1,1,1,1])
+  Thomas  : [1. 1. 1. 1.]
+  NumPy   : [1. 1. 1. 1.]
+  ||diff||: 0.00e+00   PASSED
+
+Test 2: Random 100x100 diagonally dominant system
+  ||diff||: 4.96e-16   PASSED
+
+Thomas Algorithm ready for use in Black-Scholes FDM.

@@ -1,0 +1,51 @@
+================================================================================
+  Implicit vs Crank-Nicolson Robustness Test  [M=200, N=1000]
+================================================================================
+
+--- Varying Volatility (K=100, T=1, r=0.05) ---
+  sigma=0.10                             | Im=2.24e-02 | CN=2.21e-02
+    ATM exact=6.80496  Im=6.78293  CN=6.78338
+  sigma=0.20                             | Im=1.10e-02 | CN=1.00e-02
+    ATM exact=10.45058  Im=10.43963  CN=10.44069
+  sigma=0.30                             | Im=8.01e-03 | CN=6.45e-03
+    ATM exact=14.23125  Im=14.22327  CN=14.22489
+  sigma=0.50                             | Im=5.46e-02 | CN=5.46e-02
+    ATM exact=21.79260  Im=21.78631  CN=21.78907
+  sigma=0.80                             | Im=2.08e+00 | CN=2.08e+00
+    ATM exact=32.82098  Im=32.80982  CN=32.81446
+
+--- Varying Maturity (K=100, r=0.05, sigma=0.20) ---
+  T=0.25 yr                              | Im=2.06e-02 | CN=2.01e-02
+    ATM exact=4.61500  Im=4.59443  CN=4.59494
+  T=0.50 yr                              | Im=1.48e-02 | CN=1.41e-02
+    ATM exact=6.88873  Im=6.87391  CN=6.87464
+  T=1.00 yr                              | Im=1.10e-02 | CN=1.00e-02
+    ATM exact=10.45058  Im=10.43963  CN=10.44069
+  T=2.00 yr                              | Im=8.60e-03 | CN=7.09e-03
+    ATM exact=16.12678  Im=16.11823  CN=16.11986
+
+--- Varying Strike (T=1, r=0.05, sigma=0.20) ---
+  K=80                                   | Im=8.81e-03 | CN=8.01e-03
+    ATM exact=8.36047  Im=8.35171  CN=8.35255
+  K=90                                   | Im=9.91e-03 | CN=9.01e-03
+    ATM exact=9.40553  Im=9.39567  CN=9.39662
+  K=100                                  | Im=1.10e-02 | CN=1.00e-02
+    ATM exact=10.45058  Im=10.43963  CN=10.44069
+  K=110                                  | Im=1.21e-02 | CN=1.10e-02
+    ATM exact=11.49564  Im=11.48360  CN=11.48475
+  K=120                                  | Im=1.32e-02 | CN=1.20e-02
+    ATM exact=12.54070  Im=12.52756  CN=12.52882
+
+--- Varying Risk-Free Rate (K=100, T=1, sigma=0.20) ---
+  r=0.01                                 | Im=1.08e-02 | CN=9.84e-03
+    ATM exact=8.43332  Im=8.42249  CN=8.42351
+  r=0.03                                 | Im=1.09e-02 | CN=9.88e-03
+    ATM exact=9.41340  Im=9.40256  CN=9.40360
+  r=0.05                                 | Im=1.10e-02 | CN=1.00e-02
+    ATM exact=10.45058  Im=10.43963  CN=10.44069
+  r=0.08                                 | Im=1.14e-02 | CN=1.04e-02
+    ATM exact=12.10583  Im=12.09460  CN=12.09567
+  r=0.12                                 | Im=1.20e-02 | CN=1.11e-02
+    ATM exact=14.47642  Im=14.46468  CN=14.46582
+
+Robustness test complete.

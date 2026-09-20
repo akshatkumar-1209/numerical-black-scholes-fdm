@@ -1,0 +1,77 @@
+========================================================================
+  Crank-Nicolson Black-Scholes FDM
+  K=100.0, T=1.0, r=0.05, sigma=0.2, S_max=400.0
+  Grid: M=100 (dS=4.0), N=500 (dtau=0.0020)
+========================================================================
+
+--- European Call ---
+  Max error (L-inf): 4.0001e-02
+  RMS error (L-2)  : 1.0390e-02
+
+    S (grid)        CN FDM         Exact       |Error|
+  ----------------------------------------------------
+        60.0      0.059674      0.054437    5.2377e-03
+        80.0      1.845633      1.859420    1.3787e-02
+       100.0     10.410768     10.450584    3.9816e-02
+       120.0     26.152108     26.169044    1.6936e-02
+       140.0     45.108458     45.110610    2.1520e-03
+       160.0     64.913370     64.913023    3.4711e-04
+       200.0    104.877789    104.877724    6.5256e-05
+
+--- European Put ---
+  Max error (L-inf): 4.0001e-02
+  RMS error (L-2)  : 1.0390e-02
+
+    S (grid)        CN FDM         Exact       |Error|
+  ----------------------------------------------------
+        60.0     35.182617     35.177379    5.2377e-03
+        80.0     16.968575     16.982362    1.3787e-02
+       100.0      5.533710      5.573526    3.9816e-02
+       120.0      1.275051      1.291986    1.6936e-02
+       140.0      0.231400      0.233552    2.1520e-03
+       160.0      0.036313      0.035966    3.4711e-04
+       200.0      0.000732      0.000667    6.5252e-05
+
+
+--- Spatial Convergence Study (Call, N=5000 fixed) ---
+  (N=5000 ensures temporal error negligible -- isolates O(dS^2))
+  Note: M=50 anomaly because K=100 lies between grid nodes for dS=8.
+       M        dS      Linf Err     Ratio
+  ------------------------------------------
+      25     16.00    2.4797e-01       nan
+      50      8.00    5.5355e-02      4.48  <-- K not on grid
+     100      4.00    4.0002e-02      1.38
+     200      2.00    1.0008e-02      4.00
+     400      1.00    2.4986e-03      4.01
+  CN ratios 4.00, 4.01 for M=100,200,400: clean O(dS^2).
+
+--- Temporal Order Verification (Call, M=200) ---
+  At N=10->20, temporal error dominates spatial floor --> ratio ~4 shows O(dtau^2).
+  At N>=40, spatial floor (~1e-02 for M=200) dominates and errors flatten.
+       N        dtau      Linf Err     Ratio
+  --------------------------------------------
+      10     0.10000    3.3942e-02       nan
+      20     0.05000    9.4455e-03      3.59
+      40     0.02500    9.8619e-03      0.96
+      80     0.01250    9.9718e-03      0.99
+     160     0.00625    9.9993e-03      1.00
+
+--- CN vs Fully Implicit (Call, M=100, N=100) ---
+  Implicit L-inf error : 5.0460e-02
+  CN       L-inf error : 3.9981e-02
+  Impl/CN ratio        : 1.26x  (CN more accurate at equal cost)
+
+--- Robustness Test: Non-Standard Parameters ---
+  (Verifying CN solver works correctly for a range of inputs)
+                              Parameters      CN ATM       Exact       |Err|
+  ----------------------------------------------------------------------------
+           K=80,  T=0.50, r=3%,  sig=15%     3.97226     3.98738  1.5119e-02
+           K=120, T=2.00, r=8%,  sig=35%    31.68865    31.69295  4.3000e-03
+           K=50,  T=0.25, r=5%,  sig=50%     5.25575     5.25963  3.8800e-03
+           K=100, T=1.00, r=10%, sig=25%    14.96781    14.97579  7.9846e-03
+           K=150, T=0.75, r=4%,  sig=20%    12.55058    12.56770  1.7122e-02
+
+Crank-Nicolson solver: DONE.
+Confirmed: O(dS^2) spatial (ratios 4.00,4.01 at M=100->200->400).
+           O(dtau^2) temporal (ratio ~3.6 at N=10->20, temporal-dominated).
+           Robust for wide range of market parameters.

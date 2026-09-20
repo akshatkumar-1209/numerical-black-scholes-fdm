@@ -162,3 +162,91 @@ python programs/thomas_solver.py
 | **10** | **Monotonicity & Non-Oscillation** | Maximum principle, M-matrix property, mesh constraints | ⏳ Not Started | **0%** |
 | **11** | **Non-Smooth Payoff & Improved CN** | Strike alignment, Rannacher start-up damping | ⏳ Not Started | **0%** |
 | **12** | **Consolidation, Final Report & Presentation** | Codebase integration, reproduction tests, final project presentation | ⏳ Not Started | **0%** |
+
+
+---
+
+## 🔬 Week 5 — Fully Implicit FDM (`programs/implicit_solver.py`)
+
+### Mathematical Derivation
+
+Backward Euler temporal discretisation at the new time level $n+1$:
+
+$$\frac{V_j^{n+1} - V_j^n}{\Delta\tau} = \mathcal{L}_{BS} V_j^{n+1}$$
+
+Yields a tridiagonal system per step:
+
+$$a_j V_{j-1}^{n+1} + b_j V_j^{n+1} + c_j V_{j+1}^{n+1} = V_j^n$$
+
+$$a_j = -\Delta\tau\,\alpha_j, \quad b_j = 1 - \Delta\tau\,\beta_j, \quad c_j = -\Delta\tau\,\gamma_j$$
+
+| Property | Value |
+|:---|:---|
+| Spatial accuracy | $\mathcal{O}(\Delta S^2)$ |
+| Temporal accuracy | $\mathcal{O}(\Delta\tau)$ |
+| Stability | **Unconditionally stable** |
+
+**Convergence verified:** Spatial ratios ≈ 4.0 (M=100→200→400). Temporal ratios ≈ 1.9 (N=50→800 with M=800).
+
+---
+
+## 🔬 Week 6 — Crank-Nicolson FDM (`programs/crank_nicolson_solver.py`)
+
+### Mathematical Derivation
+
+The $\theta = 1/2$ member of the theta-scheme family. Averages spatial operators at both time levels:
+
+$$\frac{V_j^{n+1} - V_j^n}{\Delta\tau} = \frac{1}{2}\mathcal{L}_{BS} V_j^{n+1} + \frac{1}{2}\mathcal{L}_{BS} V_j^n$$
+
+Gives the two-matrix system $A \mathbf{V}^{n+1} = B \mathbf{V}^n + \mathbf{b}_{\text{bc}}$:
+
+| Matrix | Sub-diag | Main-diag | Super-diag |
+|:---:|:---:|:---:|:---:|
+| $A$ (LHS) | $-\frac{\Delta\tau}{2}\alpha_j$ | $1 - \frac{\Delta\tau}{2}\beta_j$ | $-\frac{\Delta\tau}{2}\gamma_j$ |
+| $B$ (RHS) | $+\frac{\Delta\tau}{2}\alpha_j$ | $1 + \frac{\Delta\tau}{2}\beta_j$ | $+\frac{\Delta\tau}{2}\gamma_j$ |
+
+### Why O(Δτ²)?
+
+CN is equivalent to a **central difference in time** at midpoint $\tau_{n+1/2}$. The truncation error is $\mathcal{O}(\Delta\tau^2)$ versus $\mathcal{O}(\Delta\tau)$ for Backward Euler.
+
+| Property | Value |
+|:---|:---|
+| Spatial accuracy | $\mathcal{O}(\Delta S^2)$ |
+| Temporal accuracy | $\mathcal{O}(\Delta\tau^2)$ ← **second-order** |
+| Stability | **Unconditionally stable** |
+
+**Convergence verified:** Spatial ratios 4.00, 4.01 (M=100→200→400, N=5000). Temporal ratio ≈ 3.6 (N=10→20, temporal-dominated).
+
+**Robustness:** Tested across σ ∈ {0.15, 0.35, 0.50}, T ∈ {0.25, 0.5, 0.75, 2.0}, K ∈ {50, 80, 100, 120, 150}, r ∈ {3%, 4%, 5%, 8%, 10%}.
+
+---
+
+## 🗃️ Complete Repository Contents
+
+```
+numerical-black-scholes-fdm/
+├── README.md
+├── requirements.txt
+├── programs/
+│   ├── black_scholes_analytic.py        Week 1  Analytical benchmark, Greeks
+│   ├── finite_difference_derivatives.py Week 2  FD convergence verification
+│   ├── generate_grid.py                 Week 2  Grid + payoff generation
+│   ├── thomas_solver.py                 Week 3  Thomas algorithm
+│   ├── implicit_solver.py               Week 5  Fully Implicit FDM  ✅ NEW
+│   ├── crank_nicolson_solver.py         Week 6  Crank-Nicolson FDM  ✅ NEW
+│   └── method_comparison.py             Week 6  Robustness comparison ✅ NEW
+├── derivations/
+│   ├── 01_finite_difference_approximations.md
+│   ├── 02_black_scholes_pde_discretisation.md
+│   ├── 03_thomas_algorithm.md
+│   ├── 04_fully_implicit_method.md      ✅ NEW
+│   └── 05_crank_nicolson_method.md      ✅ NEW
+└── results/
+    ├── output_1_black_scholes_analytic.txt
+    ├── output_2_finite_difference.txt
+    ├── output_3_grid.txt
+    ├── output_4_thomas.txt
+    ├── output_5_implicit_solver.txt     ✅ NEW
+    ├── output_6_crank_nicolson.txt      ✅ NEW
+    └── output_7_method_comparison.txt   ✅ NEW
+```

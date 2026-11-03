@@ -1,9 +1,9 @@
 """
 reproduce_all_results.py
 ========================
-Master reproduction script for Numerical Black-Scholes FDM Project.
-Reproduces all numerical experiments, convergence tables, Greek analyses,
-and payoff kink studies in front of the supervisor in under 30 seconds.
+Automated verification script for Numerical Black-Scholes FDM Project.
+Computes and verifies all numerical experiments, convergence tables,
+Greek analyses, and payoff kink studies in under 30 seconds.
 
 Specifically covers:
 1. Error matrix for M, N in {50, 100, 200, 400} (Implicit & Crank-Nicolson)
@@ -14,7 +14,6 @@ Specifically covers:
 6. Treatment of Payoff Kink: Crank-Nicolson oscillations vs Rannacher smoothing
 
 Author: Akshat Kumar
-Supervisor: Dr. Ashok Kumar Vaikuntam
 """
 
 import os, sys
@@ -290,7 +289,7 @@ def main():
 
     # Print summary to console
     print("\n" + "=" * 78)
-    print("REPRODUCTION SUMMARY FOR SUPERVISOR VIVA")
+    print("SUMMARY OF NUMERICAL RESULTS")
     print("=" * 78)
     print("\n1. Spatial Order Study (N=5000):")
     print(f"{'M':>6} | {'dS':>6} | {'Err (CN)':>12} | {'Ratio':>8} | {'Obs Order':>10}")
@@ -314,3 +313,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

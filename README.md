@@ -410,3 +410,18 @@ numerical-black-scholes-fdm/
     ├── output_9_numerical_greeks.txt         [NEW]
     └── output_10_payoff_kink_oscillation.txt [NEW]
 ```
+
+
+---
+
+## 📊 Visual Verification & Error Plots
+
+| Figure 1: Spatial Convergence $\mathcal{O}(\Delta S^2)$ | Figure 2: Temporal Convergence $\mathcal{O}(\Delta 	au)$ vs $\mathcal{O}(\Delta 	au^2)$ |
+|:---:|:---:|
+| ![Spatial Convergence](figures/fig1_spatial_convergence.png) | ![Temporal Convergence](figures/fig2_temporal_convergence.png) |
+
+| Figure 3: Numerical Greeks Profile ($\Delta$ & $\Gamma$) | Figure 4: CN Oscillations vs Rannacher Smoothing |
+|:---:|:---:|
+| ![Numerical Greeks](figures/fig3_numerical_greeks.png) | ![Rannacher Smoothing](figures/fig4_cn_oscillations_rannacher.png) |
+
+Detailed analysis and complete mathematical derivations are consolidated in the [Technical Report (TECHNICAL_REPORT.md)](TECHNICAL_REPORT.md).

@@ -162,7 +162,6 @@ At N = 5, spurious oscillations in Gamma are reduced by a factor of 23.4× while
 
 ```
 numerical-black-scholes-fdm/
-|-- Akshat_Numerical_Black_Scholes_Project_Tracker.xlsx  Project Tracker (5 worksheets)
 |-- README.md                                          Documentation and numerical results
 |-- reproduce_all_results.py                           Verification runner (<30s)
 |-- requirements.txt                                   Python dependencies

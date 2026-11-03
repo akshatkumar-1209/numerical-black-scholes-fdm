@@ -304,3 +304,109 @@ numerical-black-scholes-fdm/
 2. **Karel in 't Hout** (2017). *Numerical Partial Differential Equations in Finance Explained: An Introduction to Computational Finance*. Financial Engineering Explained, Palgrave Macmillan.
 3. **John C. Hull** (2018). *Options, Futures, and Other Derivatives*. 10th Edition, Pearson.
 4. **R. Rannacher** (1984). *Finite element solution of diffusion problems with irregular data*. Numerische Mathematik, 43(2), 309–327.
+
+
+---
+
+## Weeks 7–10: Analysis, Greeks, and Kink Treatment
+
+### Week 7 — Numerical Verification (`programs/convergence_study.py`)
+
+Systematic spatial and temporal refinement study for both Fully Implicit and Crank-Nicolson methods. Price comparison tables against the analytical Black-Scholes solution for European call and put options at multiple spot prices.
+
+**Parameters:** K=100, T=1, r=5%, σ=20%, S_max=400
+
+| S | Implicit FDM | Exact | |Error| |
+|--:|--:|--:|--:|
+| 80 | 1.856354 | 1.859420 | 3.07e-03 |
+| 100 | 10.439632 | 10.450584 | 1.10e-02 |
+| 120 | 26.164336 | 26.169044 | 4.71e-03 |
+
+---
+
+### Week 8 — Convergence Analysis (`programs/convergence_study.py`)
+
+Observed spatial and temporal convergence orders via systematic grid refinement.
+
+**Spatial Convergence (N=5000 fixed, vary M):**
+
+| M | dS | L-inf Error | Ratio | Obs. Order |
+|--:|---:|--:|--:|--:|
+| 100 | 4.00 | ~4.8e-03 | — | — |
+| 200 | 2.00 | ~1.2e-03 | ~4.0 | ~2.0 |
+| 400 | 1.00 | ~3.0e-04 | ~4.0 | ~2.0 |
+
+Both methods confirm **O(dS²)** spatial order (central differences in S).
+
+**Temporal Convergence (M=800 fixed, vary N):**
+
+| Method | Observed Order | Confirmation |
+|:---|:---:|:---:|
+| Fully Implicit | ~O(dt¹) | Ratios ≈ 2.0 |
+| Crank-Nicolson | ~O(dt²) | Ratios ≈ 4.0 |
+
+See `derivations/06_convergence_analysis.md` for full mathematical derivation.
+
+---
+
+### Week 9 — Numerical Greeks (`programs/numerical_greeks.py`)
+
+Finite-difference Delta and Gamma computed from the FDM price surface and compared with analytical Black-Scholes Greeks.
+
+**Formulas:**
+- Delta: `Δ_j = (V_{j+1} - V_{j-1}) / (2·ΔS)` — O(ΔS²)
+- Gamma: `Γ_j = (V_{j+1} - 2V_j + V_{j-1}) / ΔS²` — O(ΔS²)
+
+**Key findings:**
+- Away from strike (S=60 or S=200): Delta error ~1e-5, Gamma error ~1e-4
+- Near strike (S≈K): errors are 10-100× larger due to the payoff kink
+- CN and Implicit give equivalent Greek accuracy at the same spatial grid M
+
+See `derivations/07_numerical_greeks.md` for full derivation.
+
+---
+
+### Week 10 — Payoff Kink and Rannacher Smoothing (`programs/payoff_kink_cn_oscillation.py`)
+
+Investigation of three related effects:
+
+1. **Non-smooth payoff**: The kink V(S,0)=max(S-K,0) degrades spatial order from O(dS²) to O(dS) when K does not fall on a grid node. Fix: choose M so that K is always a grid node.
+
+2. **CN oscillations**: The Crank-Nicolson scheme has no numerical dissipation; high-frequency modes from the kink propagate without damping, causing spurious Gamma oscillations near S=K. Most visible at coarse time grids.
+
+3. **Rannacher smoothing**: Replace the first 2 time steps with Backward Euler (L-stable, strong dissipation). This damps high-frequency modes before CN takes over. Gamma oscillations suppressed by 1-2 orders of magnitude with negligible change in price accuracy.
+
+See `derivations/08_payoff_kink_and_cn_oscillations.md` for full theory.
+
+---
+
+## Repository Structure (Complete)
+
+```
+numerical-black-scholes-fdm/
+├── README.md
+├── requirements.txt
+├── programs/
+│   ├── black_scholes.py                     Week 1  Analytical benchmark + Greeks
+│   ├── finite_difference_derivatives.py     Week 2  FD approximation tests
+│   ├── generate_grid.py                     Week 2  Grid and payoff setup
+│   ├── thomas_solver.py                     Week 3  Thomas algorithm
+│   ├── implicit_fdm.py                      Week 5  Fully Implicit FDM solver
+│   ├── crank_nicolson.py                    Week 6  Crank-Nicolson FDM solver
+│   ├── convergence_study.py                 Week 7+8  Refinement study  [NEW]
+│   ├── numerical_greeks.py                  Week 9  Delta and Gamma     [NEW]
+│   └── payoff_kink_cn_oscillation.py        Week 10 Kink + Rannacher    [NEW]
+├── derivations/
+│   ├── 01_finite_difference_approximations.md
+│   ├── 02_black_scholes_pde_discretisation.md
+│   ├── 03_thomas_algorithm.md
+│   ├── 04_fully_implicit_method.md
+│   ├── 05_crank_nicolson_method.md
+│   ├── 06_convergence_analysis.md           [NEW]
+│   ├── 07_numerical_greeks.md               [NEW]
+│   └── 08_payoff_kink_and_cn_oscillations.md [NEW]
+└── results/
+    ├── output_8_convergence_study.txt        [NEW]
+    ├── output_9_numerical_greeks.txt         [NEW]
+    └── output_10_payoff_kink_oscillation.txt [NEW]
+```

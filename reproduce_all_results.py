@@ -248,13 +248,8 @@ def main():
             f.write(f"{'M='+str(m):>7} |{row}\n")
         f.write("\n")
         f.write("Reading the matrix:\n")
-        f.write("  Moving down a column (M doubles, N fixed): spatial error dominates; error drops by ~4x -> confirms O(dS^2).\n")
-        f.write("  Moving right along a row (N doubles, M fixed):\n")
-        f.write("    - Fully Implicit error reduces by ~2x -> confirms O(dt) temporal improvement.\n")
-        f.write("    - Crank-Nicolson error remains nearly constant across N because the spatial error\n")
-        f.write("      floor O(dS^2) (~1.0e-2 for M=200, ~2.5e-3 for M=400) dominates the analytical benchmark\n")
-        f.write("      error and masks further temporal error reduction. Temporal O(dt^2) convergence\n")
-        f.write("      is therefore cleanly demonstrated via the same-spatial-grid Richardson reference study (Exp 3).\n")
+        f.write("  This is a combined refinement matrix: M and N vary across entries, so it does not independently establish either spatial or temporal order.\n")
+        f.write("  Use the separate controlled studies for convergence-order claims.\n")
     print(f"  -> Written: {matrix_file}")
 
     # ─── EXPERIMENT 2: Spatial Convergence ───────────────────────────────────

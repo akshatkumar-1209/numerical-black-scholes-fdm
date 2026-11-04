@@ -14,9 +14,9 @@
        V'(K+,0) = 1,   V'(K-,0) = 0   (discontinuous derivative)
        V''(S,0) = delta(S-K)               (distributional second derivative)
 
-  This non-smoothness degrades the formal O(dS^2) spatial order to
-  approximately O(dS^1) unless the strike K coincides with a grid node.
-  When K lies exactly on a grid node, the scheme recovers O(dS^2).
+  Formal spatial truncation order alone does not determine the observed rate;
+  kink regularity, strike alignment, time error, and boundary treatment matter.
+  Use controlled mesh results rather than infer order from alignment alone.
 
   Below we compare convergence for two choices:
     (a) Unaligned grid: dS = Smax/M, K may not be a grid node
@@ -75,7 +75,8 @@
     Because Backward Euler is L-stable (R(z) -> 0 as z -> infty), high-frequency
     modes from the Dirac-delta second derivative of the payoff kink are strongly
     damped.  Subsequent steps resume Crank-Nicolson with step dt, preserving the
-    global second-order O(dt^2) convergence.
+    second-order CN accuracy in the subsequent smooth evolution; measured orders
+    remain specific to the tested grids and are reported in the controlled study.
 
   Below we compare standard CN, the conventional one-interval startup
   (two half-steps), a four-half-step extended startup, and two full BE steps.

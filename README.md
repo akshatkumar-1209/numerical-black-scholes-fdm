@@ -201,13 +201,6 @@ L-infinity errors for M, N in {50, 100, 200, 400}. Full matrix in `results/outpu
 
 The combined 4x4 refinement matrix is descriptive. Since M and N vary together among entries, it does not independently establish spatial or temporal order. Consult `results/output_11_grid_refinement_matrix.txt` for all values.
 
----|---|---|---|---|
-| M=50 | varies | varies | varies | varies |
-| M=100 | varies | varies | varies | 4.00e-02 |
-| M=200 | varies | varies | varies | 1.00e-02 |
-| M=400 | varies | varies | varies | 2.50e-03 |
-
-
 ---
 
 ## Technical notes

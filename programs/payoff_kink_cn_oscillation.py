@@ -4,8 +4,8 @@ payoff_kink_cn_oscillation.py  --  Week 10
 Investigation of:
 1. The non-smooth payoff (kink at S=K) and its effect on convergence
 2. Spurious oscillations in the Crank-Nicolson method for small dt
-3. The Rannacher time-stepping fix: replace the first two CN steps with
-   Fully Implicit (backward-Euler) steps to damp oscillations
+3. Conventional Rannacher startup: replace the first CN interval by two
+   Backward Euler half-steps to damp oscillations
 
 Theory:
   The terminal payoff V(S, 0) = max(S-K, 0) is only C^0 at S=K.
@@ -14,8 +14,8 @@ Theory:
   passes this non-smoothness forward and can produce spurious oscillations
   in V and its Greeks -- especially visible in Gamma near S=K.
 
-  The Rannacher fix: use two implicit (BE) steps first, which damps the
-  high-frequency components before CN takes over.
+  Conventional startup: use two BE half-steps over the first CN interval,
+  damping high-frequency components before CN takes over.
 
 Parameters: K=100, T=1, r=0.05, sigma=0.20, Smax=400
 
@@ -226,9 +226,9 @@ if __name__ == '__main__':
        V'(K+,0) = 1,   V'(K-,0) = 0   (discontinuous derivative)
        V''(S,0) = delta(S-K)               (distributional second derivative)
 
-  This non-smoothness degrades the formal O(dS^2) spatial order to
-  approximately O(dS^1) unless the strike K coincides with a grid node.
-  When K lies exactly on a grid node, the scheme recovers O(dS^2).
+  Formal spatial truncation order alone does not determine the observed rate;
+  kink regularity, strike alignment, time error, and boundary treatment matter.
+  Use controlled mesh results rather than infer order from alignment alone.
 
   Below we compare convergence for two choices:
     (a) Unaligned grid: dS = Smax/M, K may not be a grid node
@@ -314,7 +314,8 @@ if __name__ == '__main__':
     Because Backward Euler is L-stable (R(z) -> 0 as z -> infty), high-frequency
     modes from the Dirac-delta second derivative of the payoff kink are strongly
     damped.  Subsequent steps resume Crank-Nicolson with step dt, preserving the
-    global second-order O(dt^2) convergence.
+    second-order CN accuracy in the subsequent smooth evolution; measured orders
+    remain specific to the tested grids and are reported in the controlled study.
 
   Below we compare standard CN, the conventional one-interval startup
   (two half-steps), a four-half-step extended startup, and two full BE steps.

@@ -49,9 +49,7 @@ Boundary corrections to RHS: $\text{rhs}[0] \mathrel{-}= a_1 V_0^{n+1}$; $\text{
 
 ## 4. Stability
 
-The diagonal dominance condition: $b_j - (|a_j| + |c_j|) = 1 + r\Delta\tau > 0$ always.  
-When the spatial off-diagonal signs meet the required conditions, the matrix has the corresponding M-matrix structure and is nonsingular. This algebraic property is distinct from a stability proof for the complete discretisation; do not generalise it to every mesh without checking coefficient signs and boundary treatment.
-
+For the assembled Backward Euler row, the diagonal is $1+\Delta\tau(\sigma^2 S_j^2/\Delta S^2+r)$ and the off-diagonals are $-\Delta\tau\alpha_j$ and $-\Delta\tau\gamma_j$. Hence strict diagonal dominance requires $1+\Delta\tau(\sigma^2 S_j^2/\Delta S^2+r)>\Delta\tau(|\alpha_j|+|\gamma_j|)$. Since $\alpha_j$ can be negative on coarse/low-$S$ meshes, this inequality is not automatically implied by $1+r\Delta\tau>0$. M-matrix sign conditions likewise require the assembled off-diagonals to be nonpositive. These are algebraic properties of the chosen matrix and are distinct from stability of the complete time discretisation.
 ---
 
 ## 5. Accuracy

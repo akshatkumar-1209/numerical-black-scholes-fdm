@@ -84,7 +84,7 @@ def solve_implicit(K, T, r, sigma, Smax, M, N, opt='call'):
     """
     Backward-Euler (fully implicit) finite-difference solver.
     Accuracy: O(dS^2) spatial, O(dt) temporal.
-    Unconditionally stable.
+    Backward Euler is A-stable for the scalar test equation; matrix properties depend on the discretized operator.
     """
     dS = Smax / M
     dt = T / N
@@ -123,7 +123,7 @@ def solve_cn(K, T, r, sigma, Smax, M, N, opt='call'):
     """
     Crank-Nicolson (theta=1/2) finite-difference solver.
     Accuracy: O(dS^2) spatial, O(dt^2) temporal.
-    Unconditionally stable.
+    Crank-Nicolson is A-stable for the scalar test equation; matrix properties depend on the discretized operator.
     """
     dS = Smax / M
     dt = T / N
@@ -178,10 +178,10 @@ def linf_error_vs_reference(V_coarse, V_ref):
     return np.max(np.abs(V_coarse[1:-1] - V_ref[1:-1]))
 
 def obs_order(e1, e2, h1, h2):
-    """Observed order p from  e ~ C*h^p."""
-    if e1 <= 0 or e2 <= 0 or e1 == e2:
+    """Observed order p from e ~ C*h^p, where h1 is coarse and h2 is fine (h1 > h2)."""
+    if e1 <= 0 or e2 <= 0 or h1 <= h2:
         return float('nan')
-    return log(e1 / e2) / log(h2 / h1)
+    return log(e1 / e2) / log(h1 / h2)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # MAIN STUDY
@@ -338,10 +338,9 @@ if __name__ == '__main__':
     avoids this artefact entirely.
 
   Stability:
-    Both methods are unconditionally stable (no CFL restriction).
-    The tridiagonal system arising from the backward-in-time implicit
-    step has a strictly diagonally dominant matrix, guaranteeing stability
-    for any choice of dS and dt.
+    Backward Euler and Crank-Nicolson are A-stable scalar methods. Matrix
+    stability and dominance depend on the discrete operator and coefficients;
+    Thomas elimination solves the tested systems but does not prove scheme stability.
 
   Practical recommendation:
     For equivalent computational cost (same M*N), Crank-Nicolson achieves

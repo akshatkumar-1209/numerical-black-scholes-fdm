@@ -115,7 +115,7 @@ def solve_cn(K, T, r, sigma, Smax, M, N, opt='call'):
         V[0] = V0n; V[1:M] = thomas(aL, bL, cL, rhs); V[M] = VMn
     return S, V
 
-def solve_rannacher(K, T, r, sigma, Smax, M, N, opt='call', n_impl=2):
+def solve_rannacher(K, T, r, sigma, Smax, M, N, opt='call', n_half_steps=2):
     dS = Smax / M; dt = T / N
     S = np.linspace(0, Smax, M + 1)
     V = np.maximum(S - K, 0.0) if opt == 'call' else np.maximum(K - S, 0.0)
@@ -126,24 +126,34 @@ def solve_rannacher(K, T, r, sigma, Smax, M, N, opt='call', n_impl=2):
     h = 0.5 * dt
     aL, bL, cL = -h * al, 1.0 - h * be, -h * ga
     aR, bR, cR =  h * al, 1.0 + h * be,  h * ga
-    a_im, b_im, c_im = -dt * al, 1.0 - dt * be, -dt * ga
-    for step in range(N):
+
+    dt_half = 0.5 * dt
+    a_half = -dt_half * al; b_half = 1.0 - dt_half * be; c_half = -dt_half * ga
+
+    if n_half_steps < 0 or n_half_steps > 2 * N or n_half_steps % 2:
+        raise ValueError("n_half_steps must be even and between 0 and 2*N")
+    num_half = n_half_steps
+    for s in range(num_half):
+        tau = (s + 1) * dt_half
+        V0 = 0.0 if opt == 'call' else K * exp(-r * tau)
+        VM = (Smax - K * exp(-r * tau)) if opt == 'call' else 0.0
+        rhs = V[1:M].copy()
+        rhs[0] -= a_half[0] * V0; rhs[-1] -= c_half[-1] * VM
+        V[0] = V0; V[1:M] = thomas(a_half, b_half, c_half, rhs); V[M] = VM
+
+    start_step = num_half // 2
+    for step in range(start_step, N):
         tn = (step + 1) * dt; to = step * dt
         V0n = 0.0 if opt == 'call' else K * exp(-r * tn)
         VMn = (Smax - K * exp(-r * tn)) if opt == 'call' else 0.0
         V0o = 0.0 if opt == 'call' else K * exp(-r * to)
         VMo = (Smax - K * exp(-r * to)) if opt == 'call' else 0.0
-        if step < n_impl:
-            rhs = V[1:M].copy()
-            rhs[0] -= a_im[0] * V0n; rhs[-1] -= c_im[-1] * VMn
-            V[0] = V0n; V[1:M] = thomas(a_im, b_im, c_im, rhs); V[M] = VMn
-        else:
-            vi = V[1:M]
-            rhs = bR * vi
-            rhs[1:] += aR[1:] * vi[:-1]; rhs[:-1] += cR[:-1] * vi[1:]
-            rhs[0] += aR[0] * V0o - aL[0] * V0n
-            rhs[-1] += cR[-1] * VMo - cL[-1] * VMn
-            V[0] = V0n; V[1:M] = thomas(aL, bL, cL, rhs); V[M] = VMn
+        vi = V[1:M]
+        rhs = bR * vi
+        rhs[1:] += aR[1:] * vi[:-1]; rhs[:-1] += cR[:-1] * vi[1:]
+        rhs[0] += aR[0] * V0o - aL[0] * V0n
+        rhs[-1] += cR[-1] * VMo - cL[-1] * VMn
+        V[0] = V0n; V[1:M] = thomas(aL, bL, cL, rhs); V[M] = VMn
     return S, V
 
 def linf_error_analytic(S, V, K, T, r, sigma, opt='call'):
@@ -176,6 +186,28 @@ def main():
     print(f"  K={K}, T={T}, r={r}, sigma={sigma}, Smax={Smax}")
     print(f"  Analytical ATM call: {bs_call(K, K, T, r, sigma):.8f}")
     print("=" * 72)
+
+    # Closed-form benchmark and parity checks on a common grid.
+    benchmark_max_error = 0.0
+    parity_max_residual = 0.0
+    for solver_name, solver, M_b, N_b in [
+        ("Fully Implicit", solve_implicit, 200, 1000),
+        ("Crank-Nicolson", solve_cn, 200, 500),
+    ]:
+        S_call, V_call = solver(K, T, r, sigma, Smax, M_b, N_b, "call")
+        S_put, V_put = solver(K, T, r, sigma, Smax, M_b, N_b, "put")
+        call_error = linf_error_analytic(S_call, V_call, K, T, r, sigma, "call")
+        put_error = linf_error_analytic(S_put, V_put, K, T, r, sigma, "put")
+        parity = np.max(np.abs(V_call - V_put - S_call + K * exp(-r * T)))
+        benchmark_max_error = max(benchmark_max_error, call_error, put_error)
+        parity_max_residual = max(parity_max_residual, float(parity))
+        print(f"  {solver_name}: call/put L-inf benchmark errors = {call_error:.6e}, {put_error:.6e}; max parity residual = {parity:.6e}")
+    if not np.isfinite(benchmark_max_error) or benchmark_max_error > 0.1:
+        raise AssertionError(f"Analytical benchmark error too large: {benchmark_max_error:.6e}")
+    # Backward Euler has a small O(dt) parity defect because exp(-r*tau)
+    # is not an exact solution of its discrete time recurrence.
+    if not np.isfinite(parity_max_residual) or parity_max_residual > 2.0e-4:
+        raise AssertionError(f"Numerical put-call parity residual too large: {parity_max_residual:.6e}")
 
     # ─── EXPERIMENT 1: 4x4 Refinement Matrix ────────────────────────────────
     print("\n[1/5] 4x4 Grid Refinement Matrix (M, N in {50, 100, 200, 400})")
@@ -216,25 +248,25 @@ def main():
             f.write(f"{'M='+str(m):>7} |{row}\n")
         f.write("\n")
         f.write("Reading the matrix:\n")
-        f.write("  Moving down a column (M doubles, N fixed): error drops by ~4x -> O(dS^2)\n")
-        f.write("  Moving right along a row (N doubles, M fixed): Implicit drops by ~2x -> O(dt),\n")
-        f.write("    CN drops by ~4x -> O(dt^2) for large N; floor from spatial error limits this.\n")
+        f.write("  Moving down a column (M doubles, N fixed): spatial error dominates; error drops by ~4x -> confirms O(dS^2).\n")
+        f.write("  Moving right along a row (N doubles, M fixed):\n")
+        f.write("    - Fully Implicit error reduces by ~2x -> confirms O(dt) temporal improvement.\n")
+        f.write("    - Crank-Nicolson error remains nearly constant across N because the spatial error\n")
+        f.write("      floor O(dS^2) (~1.0e-2 for M=200, ~2.5e-3 for M=400) dominates the analytical benchmark\n")
+        f.write("      error and masks further temporal error reduction. Temporal O(dt^2) convergence\n")
+        f.write("      is therefore cleanly demonstrated via the same-spatial-grid Richardson reference study (Exp 3).\n")
     print(f"  -> Written: {matrix_file}")
 
     # ─── EXPERIMENT 2: Spatial Convergence ───────────────────────────────────
     print("\n[2/5] Spatial Convergence (N=5000, vary M in {100, 200, 400})")
-    prev_cn = None
-    sp_ratios = []
-    for M_val in [100, 200, 400]:
-        _, V_c = solve_cn(K, T, r, sigma, Smax, M_val, 5000)
-        S_c = np.linspace(0, Smax, M_val + 1)
-        e_c = linf_error_analytic(S_c, V_c, K, T, r, sigma)
-        if prev_cn:
-            sp_ratios.append(prev_cn / e_c)
-        prev_cn = e_c
-
-    for idx, ratio in enumerate(sp_ratios):
-        assert_range(f"CN spatial ratio step {idx+1} (expect ~4.0)", ratio, 3.5, 4.5)
+    for name, solver in [("Implicit", solve_implicit), ("CN", solve_cn)]:
+        previous_error = None
+        for M_val in [100, 200, 400]:
+            S_c, V_c = solver(K, T, r, sigma, Smax, M_val, 5000)
+            e_c = linf_error_analytic(S_c, V_c, K, T, r, sigma)
+            if previous_error is not None:
+                assert_range(f"{name} spatial ratio M={M_val//2}->{M_val}", previous_error / e_c, 3.5, 4.5)
+            previous_error = e_c
 
     # ─── EXPERIMENT 3: Temporal Convergence (same-grid reference) ────────────
     print("\n[3/5] Temporal Convergence — same-grid Richardson reference (M=200, N_ref=12800)")
@@ -242,6 +274,16 @@ def main():
 
     _, V_ref_im = solve_implicit(K, T, r, sigma, Smax, M_t, N_ref)
     _, V_ref_cn = solve_cn(K, T, r, sigma, Smax, M_t, N_ref)
+    _, V_ref2_im = solve_implicit(K, T, r, sigma, Smax, M_t, 2 * N_ref)
+    _, V_ref2_cn = solve_cn(K, T, r, sigma, Smax, M_t, 2 * N_ref)
+    ref_change_im = linf_error_reference(V_ref_im, V_ref2_im)
+    ref_change_cn = linf_error_reference(V_ref_cn, V_ref2_cn)
+    print(f"  Reference refinement N_ref={N_ref}->{2*N_ref}: Implicit change={ref_change_im:.6e}; CN change={ref_change_cn:.6e}")
+    if ref_change_im > 2.0e-4 or ref_change_cn > 1.0e-8:
+        raise AssertionError(
+            "Temporal reference is not sufficiently converged: "
+            f"Implicit change={ref_change_im:.6e}, CN change={ref_change_cn:.6e}"
+        )
 
     prev_im, prev_cn = None, None
     im_ratios, cn_ratios = [], []
@@ -278,17 +320,21 @@ def main():
     print("\n[5/5] Rannacher vs CN — Gamma oscillation at N=5 (M=200)")
     M_r = 200; dS_r = Smax / M_r; j_K = round(K / dS_r)
     _, V_pure = solve_cn(K, T, r, sigma, Smax, M_r, 5)
-    _, V_ran  = solve_rannacher(K, T, r, sigma, Smax, M_r, 5, n_impl=2)
+    _, V_ran  = solve_rannacher(K, T, r, sigma, Smax, M_r, 5, n_half_steps=2)
     g_pure = np.array([(V_pure[j+1] - 2*V_pure[j] + V_pure[j-1]) / dS_r**2
                         for j in range(1, M_r)])
     g_ran  = np.array([(V_ran[j+1]  - 2*V_ran[j]  + V_ran[j-1])  / dS_r**2
                         for j in range(1, M_r)])
     osc_pure = max(abs(g_pure[j_K-2] - g_pure[j_K-1]), abs(g_pure[j_K] - g_pure[j_K-1]))
     osc_ran  = max(abs(g_ran[j_K-2]  - g_ran[j_K-1]),  abs(g_ran[j_K]  - g_ran[j_K-1]))
+    err_pure = linf_error_analytic(np.linspace(0, Smax, M_r + 1), V_pure, K, T, r, sigma)
+    err_ran = linf_error_analytic(np.linspace(0, Smax, M_r + 1), V_ran, K, T, r, sigma)
 
     # CN should have large oscillation at N=5; Rannacher should suppress it substantially
     assert_range("CN Gamma oscillation at N=5 (expect large)", osc_pure, 0.05, 1.0)
     assert_range("Rannacher Gamma oscillation at N=5 (expect small)", osc_ran, 0.0, 0.01)
+    print(f"  N=5 max price errors: CN={err_pure:.6e}, corrected Rannacher={err_ran:.6e}")
+    print(f"  N=5 oscillation suppression: {osc_pure / osc_ran:.3f}x")
 
     print("\n" + "=" * 72)
     print("  ALL ASSERTIONS PASSED")

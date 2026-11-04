@@ -1,5 +1,5 @@
 """
-payoff_kink_cn_oscillation.py  —  Week 10
+payoff_kink_cn_oscillation.py  --  Week 10
 ==========================================
 Investigation of:
 1. The non-smooth payoff (kink at S=K) and its effect on convergence
@@ -9,10 +9,10 @@ Investigation of:
 
 Theory:
   The terminal payoff V(S, 0) = max(S-K, 0) is only C^0 at S=K.
-  Its second derivative is a Dirac delta: V''(S,0) = δ(S-K).
-  The Crank-Nicolson scheme, being a rational approximation to exp(-L·dt),
+  Its second derivative is a Dirac delta: V''(S,0) = delta(S-K).
+  The Crank-Nicolson scheme, being a rational approximation to exp(-L*dt),
   passes this non-smoothness forward and can produce spurious oscillations
-  in V and its Greeks — especially visible in Gamma near S=K.
+  in V and its Greeks -- especially visible in Gamma near S=K.
 
   The Rannacher fix: use two implicit (BE) steps first, which damps the
   high-frequency components before CN takes over.
@@ -103,38 +103,93 @@ def solve_cn_standard(K, T, r, sigma, Smax, M, N, opt='call'):
         V[0]=V0n; V[1:M]=_cn_step(V,M,aL,bL,cL,aR,bR,cR,V0n,VMn,V0o,VMo); V[M]=VMn
     return S, V
 
-def solve_rannacher(K, T, r, sigma, Smax, M, N, opt='call', n_impl=2):
+def solve_rannacher(K, T, r, sigma, Smax, M, N, opt='call', n_half_steps=2):
     """
-    Rannacher time-stepping:
-      First n_impl steps use Fully Implicit (Backward Euler) with dt/2 each
-      (so 2*n_impl half-steps = n_impl full dt) to damp oscillations from kink.
-      Remaining steps use Crank-Nicolson.
+    Conventional Rannacher time-stepping (Rannacher 1984, Giles & Carter 2006):
+      Replaces the first n_half_steps // 2 Crank-Nicolson intervals
+      with an even number of Backward Euler sub-steps of size dt/2.
+      Conventional startup: n_half_steps = 2 replaces the first CN interval
+      [0, dt] with two BE half-steps; CN then advances from t=dt through T.
+      Remaining steps use Crank-Nicolson with full step dt.
     """
-    dS=Smax/M; dt=T/N
-    S=np.linspace(0,Smax,M+1)
-    V=np.maximum(S-K,0.0) if opt=='call' else np.maximum(K-S,0.0)
-    Sj=np.arange(1,M)*dS
-    al=0.5*sigma**2*Sj**2/dS**2-0.5*r*Sj/dS
-    be=-sigma**2*Sj**2/dS**2-r
-    ga=0.5*sigma**2*Sj**2/dS**2+0.5*r*Sj/dS
-    h=0.5*dt
-    aL=-h*al; bL=1.0-h*be; cL=-h*ga
-    aR=h*al;  bR=1.0+h*be; cR=h*ga
-    a_im=-dt*al; b_im=1.0-dt*be; c_im=-dt*ga
+    dS = Smax / M
+    dt = T / N
+    S = np.linspace(0, Smax, M + 1)
+    V = np.maximum(S - K, 0.0) if opt == 'call' else np.maximum(K - S, 0.0)
+    Sj = np.arange(1, M) * dS
+
+    al = 0.5 * sigma**2 * Sj**2 / dS**2 - 0.5 * r * Sj / dS
+    be = -sigma**2 * Sj**2 / dS**2 - r
+    ga = 0.5 * sigma**2 * Sj**2 / dS**2 + 0.5 * r * Sj / dS
+
+    # CN step coefficients (dt)
+    h = 0.5 * dt
+    aL = -h * al; bL = 1.0 - h * be; cL = -h * ga
+    aR =  h * al; bR = 1.0 + h * be; cR =  h * ga
+
+    # Backward Euler half-step coefficients (dt / 2)
+    dt_half = 0.5 * dt
+    a_half = -dt_half * al; b_half = 1.0 - dt_half * be; c_half = -dt_half * ga
+
+    # Phase 1: Backward Euler half-steps of size dt/2
+    if n_half_steps < 0 or n_half_steps > 2 * N or n_half_steps % 2:
+        raise ValueError("n_half_steps must be even and between 0 and 2*N")
+    num_half = n_half_steps
+    for s in range(num_half):
+        tau = (s + 1) * dt_half
+        V0 = 0.0 if opt == 'call' else K * exp(-r * tau)
+        VM = (Smax - K * exp(-r * tau)) if opt == 'call' else 0.0
+        V[0] = V0
+        V[1:M] = _implicit_step(V, M, a_half, b_half, c_half, V0, VM)
+        V[M] = VM
+
+    # Phase 2: Crank-Nicolson steps of size dt
+    start_step = num_half // 2
+    for step in range(start_step, N):
+        to = step * dt
+        tn = (step + 1) * dt
+        V0o = 0.0 if opt == 'call' else K * exp(-r * to)
+        VMo = (Smax - K * exp(-r * to)) if opt == 'call' else 0.0
+        V0n = 0.0 if opt == 'call' else K * exp(-r * tn)
+        VMn = (Smax - K * exp(-r * tn)) if opt == 'call' else 0.0
+        V[0] = V0n
+        V[1:M] = _cn_step(V, M, aL, bL, cL, aR, bR, cR, V0n, VMn, V0o, VMo)
+        V[M] = VMn
+
+    return S, V
+
+def solve_two_step_implicit_startup(K, T, r, sigma, Smax, M, N, opt='call', n_impl=2):
+    """
+    Two-full-step implicit startup variant:
+      First n_impl steps use Backward Euler with full dt.
+      Remaining steps use Crank-Nicolson with full dt.
+    """
+    dS = Smax / M
+    dt = T / N
+    S = np.linspace(0, Smax, M + 1)
+    V = np.maximum(S - K, 0.0) if opt == 'call' else np.maximum(K - S, 0.0)
+    Sj = np.arange(1, M) * dS
+
+    al = 0.5 * sigma**2 * Sj**2 / dS**2 - 0.5 * r * Sj / dS
+    be = -sigma**2 * Sj**2 / dS**2 - r
+    ga = 0.5 * sigma**2 * Sj**2 / dS**2 + 0.5 * r * Sj / dS
+
+    h = 0.5 * dt
+    aL = -h * al; bL = 1.0 - h * be; cL = -h * ga
+    aR =  h * al; bR = 1.0 + h * be; cR =  h * ga
+    a_im = -dt * al; b_im = 1.0 - dt * be; c_im = -dt * ga
 
     for step in range(N):
-        tn=(step+1)*dt; to=step*dt
-        V0n=0.0 if opt=='call' else K*exp(-r*tn)
-        VMn=(Smax-K*exp(-r*tn)) if opt=='call' else 0.0
-        V0o=0.0 if opt=='call' else K*exp(-r*to)
-        VMo=(Smax-K*exp(-r*to)) if opt=='call' else 0.0
+        tn = (step + 1) * dt; to = step * dt
+        V0n = 0.0 if opt == 'call' else K * exp(-r * tn)
+        VMn = (Smax - K * exp(-r * tn)) if opt == 'call' else 0.0
+        V0o = 0.0 if opt == 'call' else K * exp(-r * to)
+        VMo = (Smax - K * exp(-r * to)) if opt == 'call' else 0.0
 
         if step < n_impl:
-            # Implicit (Backward Euler) step
-            V[0]=V0n; V[1:M]=_implicit_step(V,M,a_im,b_im,c_im,V0n,VMn); V[M]=VMn
+            V[0] = V0n; V[1:M] = _implicit_step(V, M, a_im, b_im, c_im, V0n, VMn); V[M] = VMn
         else:
-            # Crank-Nicolson step
-            V[0]=V0n; V[1:M]=_cn_step(V,M,aL,bL,cL,aR,bR,cR,V0n,VMn,V0o,VMo); V[M]=VMn
+            V[0] = V0n; V[1:M] = _cn_step(V, M, aL, bL, cL, aR, bR, cR, V0n, VMn, V0o, VMo); V[M] = VMn
 
     return S, V
 
@@ -154,7 +209,7 @@ if __name__ == '__main__':
     opt='call'
 
     print("=" * 72)
-    print("  NUMERICAL BLACK-SCHOLES FDM — WEEK 10")
+    print("  NUMERICAL BLACK-SCHOLES FDM -- WEEK 10")
     print("  Payoff Kink, CN Oscillations & Rannacher Smoothing")
     print("=" * 72)
     print(f"  Parameters: K={K}, T={T}, r={r}, sigma={sigma}, Smax={Smax}")
@@ -162,14 +217,14 @@ if __name__ == '__main__':
 
     # ─── PART 1: Payoff kink and effect on convergence ───────────────────────
     print("=" * 72)
-    print("  PART 1 — NON-SMOOTH PAYOFF: L-inf ERROR WITH AND WITHOUT KINK")
+    print("  PART 1 -- NON-SMOOTH PAYOFF: L-inf ERROR WITH AND WITHOUT KINK")
     print("=" * 72)
     print("""
   The payoff V(S,T=0) = max(S-K,0) is continuous but not differentiable
   at S=K (the 'kink').  The exact solution at maturity satisfies:
 
        V'(K+,0) = 1,   V'(K-,0) = 0   (discontinuous derivative)
-       V''(S,0) = δ(S-K)               (distributional second derivative)
+       V''(S,0) = delta(S-K)               (distributional second derivative)
 
   This non-smoothness degrades the formal O(dS^2) spatial order to
   approximately O(dS^1) unless the strike K coincides with a grid node.
@@ -215,7 +270,7 @@ if __name__ == '__main__':
 
     # ─── PART 2: CN oscillations at coarse time steps ────────────────────────
     print("=" * 72)
-    print("  PART 2 — CRANK-NICOLSON OSCILLATIONS FROM THE PAYOFF KINK")
+    print("  PART 2 -- CRANK-NICOLSON OSCILLATIONS FROM THE PAYOFF KINK")
     print("=" * 72)
     print("""
   For very coarse time grids (large dt), the Crank-Nicolson method can
@@ -232,7 +287,7 @@ if __name__ == '__main__':
     N_vals=[5, 10, 20, 50, 100, 500]
 
     print(f"  CN Gamma oscillation study (M={M_osc}, K={K})")
-    print(f"  Gamma near S=K: analytical peak = {bs_gamma_val(K,K,T,r,sigma):.6f}")
+    print(f"  Gamma near S=K: analytical ATM value = {bs_gamma_val(K,K,T,r,sigma):.6f}")
     print()
     print(f"  {'N':>6}  {'dt':>9}  {'Gamma at K-dS':>14}  {'Gamma at K':>12}  {'Gamma at K+dS':>14}  {'Max|Osc|':>10}")
     print("  " + "-" * 70)
@@ -250,75 +305,105 @@ if __name__ == '__main__':
 
     # ─── PART 3: Rannacher smoothing comparison ───────────────────────────────
     print("=" * 72)
-    print("  PART 3 — RANNACHER TIME-STEPPING (IMPLICIT START-UP)")
+    print("  PART 3 -- CONVENTIONAL RANNACHER TIME-STEPPING (HALF-STEP BACKWARD EULER)")
     print("=" * 72)
     print("""
-  The Rannacher fix: replace the first 2 time steps with Fully Implicit
-  (Backward Euler) steps.  Backward Euler is L-stable and strongly damps
-  high-frequency modes, removing the oscillation introduced by the kink.
-  Subsequent steps use Crank-Nicolson, preserving the O(dt^2) accuracy
-  in the smooth region.
+  Conventional Rannacher startup (Rannacher 1984, Giles & Carter 2006):
+    The first Crank-Nicolson interval [0, dt] is replaced by two Backward Euler
+    half-steps of size dt/2; subsequent intervals use full-step CN.
+    Because Backward Euler is L-stable (R(z) -> 0 as z -> infty), high-frequency
+    modes from the Dirac-delta second derivative of the payoff kink are strongly
+    damped.  Subsequent steps resume Crank-Nicolson with step dt, preserving the
+    global second-order O(dt^2) convergence.
 
-  We compare: Standard CN vs Rannacher CN for various N.
+  Below we compare standard CN, the conventional one-interval startup
+  (two half-steps), a four-half-step extended startup, and two full BE steps.
   """)
 
-    M_ran=200
-    print(f"  M={M_ran}, comparing Standard CN vs Rannacher CN")
-    print(f"\n  {'N':>6}  {'CN L-inf':>12}  {'Rannacher L-inf':>16}  {'CN Gamma Osc':>14}  {'Ran Gamma Osc':>14}")
-    print("  " + "-" * 72)
-    dS_ran=Smax/M_ran
+    M_ran = 200
+    dS_ran = Smax / M_ran
+    j_K = round(K / dS_ran)
+
+    print(f"  Primary Study: Standard CN vs Conventional Rannacher (2 half-steps over first interval)")
+    print(f"  Grid: M={M_ran} (dS={dS_ran:.2f}), K={K:.1f}")
+    print(f"\n  {'N':>6}  {'CN L-inf':>12}  {'Ran(2h) L-inf':>14}  {'CN Gamma Osc':>13}  {'Ran Gamma Osc':>14}  {'Damping':>9}")
+    print("  " + "-" * 74)
 
     for N_r in [5, 10, 20, 50, 100, 200]:
-        S_c, V_cn = solve_cn_standard(K,T,r,sigma,Smax,M_ran,N_r,opt)
-        S_r, V_ran= solve_rannacher (K,T,r,sigma,Smax,M_ran,N_r,opt)
+        S_c, V_cn = solve_cn_standard(K, T, r, sigma, Smax, M_ran, N_r, opt)
+        S_r, V_ran = solve_rannacher(K, T, r, sigma, Smax, M_ran, N_r, opt, n_half_steps=2)
 
         # L-inf
-        errs_cn=[abs(V_cn[j]-bs_call(S_c[j],K,T,r,sigma)) for j in range(1,M_ran) if S_c[j]>0]
-        errs_ran=[abs(V_ran[j]-bs_call(S_r[j],K,T,r,sigma)) for j in range(1,M_ran) if S_r[j]>0]
-        e_cn=max(errs_cn); e_ran=max(errs_ran)
+        errs_cn = [abs(V_cn[j] - bs_call(S_c[j], K, T, r, sigma)) for j in range(1, M_ran) if S_c[j] > 0]
+        errs_ran = [abs(V_ran[j] - bs_call(S_r[j], K, T, r, sigma)) for j in range(1, M_ran) if S_r[j] > 0]
+        e_cn = max(errs_cn); e_ran = max(errs_ran)
 
         # Gamma oscillation near K
-        g_cn =compute_gamma_grid(S_c, V_cn, M_ran)
-        g_ran=compute_gamma_grid(S_r, V_ran, M_ran)
-        j_K=round(K/dS_ran)
-        osc_cn =max(abs(g_cn[j_K-1]-g_cn[j_K]),  abs(g_cn[j_K+1]-g_cn[j_K]))
-        osc_ran=max(abs(g_ran[j_K-1]-g_ran[j_K]), abs(g_ran[j_K+1]-g_ran[j_K]))
+        g_cn = compute_gamma_grid(S_c, V_cn, M_ran)
+        g_ran = compute_gamma_grid(S_r, V_ran, M_ran)
+        osc_cn = max(abs(g_cn[j_K-1] - g_cn[j_K]), abs(g_cn[j_K+1] - g_cn[j_K]))
+        osc_ran = max(abs(g_ran[j_K-1] - g_ran[j_K]), abs(g_ran[j_K+1] - g_ran[j_K]))
+        damp = osc_cn / osc_ran if osc_ran > 0 else float('nan')
 
-        print(f"  {N_r:>6}  {e_cn:>12.5e}  {e_ran:>16.5e}  {osc_cn:>14.4e}  {osc_ran:>14.4e}")
+        print(f"  {N_r:>6}  {e_cn:>12.5e}  {e_ran:>14.5e}  {osc_cn:>13.4e}  {osc_ran:>14.4e}  {damp:>8.1f}x")
+
+    print("\n  Method Variant Comparison at N=5 (Coarsest grid, severe kink shock):")
+    print("  " + "-" * 74)
+    S_5, V_cn_5 = solve_cn_standard(K, T, r, sigma, Smax, M_ran, 5, opt)
+    _, V_ran_5  = solve_rannacher(K, T, r, sigma, Smax, M_ran, 5, opt, n_half_steps=4)
+    _, V_2h_5   = solve_rannacher(K, T, r, sigma, Smax, M_ran, 5, opt, n_half_steps=2)
+    _, V_2f_5   = solve_two_step_implicit_startup(K, T, r, sigma, Smax, M_ran, 5, opt, n_impl=2)
+
+    g_cn_5  = compute_gamma_grid(S_5, V_cn_5, M_ran)
+    g_ran_5 = compute_gamma_grid(S_5, V_ran_5, M_ran)
+    g_2h_5  = compute_gamma_grid(S_5, V_2h_5, M_ran)
+    g_2f_5  = compute_gamma_grid(S_5, V_2f_5, M_ran)
+
+    osc_cn_5  = max(abs(g_cn_5[j_K-1] - g_cn_5[j_K]), abs(g_cn_5[j_K+1] - g_cn_5[j_K]))
+    osc_ran_5 = max(abs(g_ran_5[j_K-1] - g_ran_5[j_K]), abs(g_ran_5[j_K+1] - g_ran_5[j_K]))
+    osc_2h_5  = max(abs(g_2h_5[j_K-1] - g_2h_5[j_K]), abs(g_2h_5[j_K+1] - g_2h_5[j_K]))
+    osc_2f_5  = max(abs(g_2f_5[j_K-1] - g_2f_5[j_K]), abs(g_2f_5[j_K+1] - g_2f_5[j_K]))
+
+    e_cn_5  = max([abs(V_cn_5[j] - bs_call(S_5[j], K, T, r, sigma)) for j in range(1, M_ran) if S_5[j] > 0])
+    e_ran_5 = max([abs(V_ran_5[j] - bs_call(S_5[j], K, T, r, sigma)) for j in range(1, M_ran) if S_5[j] > 0])
+    e_2h_5  = max([abs(V_2h_5[j] - bs_call(S_5[j], K, T, r, sigma)) for j in range(1, M_ran) if S_5[j] > 0])
+    e_2f_5  = max([abs(V_2f_5[j] - bs_call(S_5[j], K, T, r, sigma)) for j in range(1, M_ran) if S_5[j] > 0])
+
+    print(f"  Standard Crank-Nicolson        : Gamma Osc = {osc_cn_5:.5e}, L-inf Err = {e_cn_5:.5e}")
+    print(f"  Rannacher (2 half-steps dt/2)  : Gamma Osc = {osc_2h_5:.5e}, L-inf Err = {e_2h_5:.5e}  (Damping: {osc_cn_5/osc_2h_5:.1f}x)")
+    print(f"  Rannacher (4 half-steps dt/2)  : Gamma Osc = {osc_ran_5:.5e}, L-inf Err = {e_ran_5:.5e}  (Damping: {osc_cn_5/osc_ran_5:.1f}x)")
+    print(f"  Implicit Startup (2 full steps): Gamma Osc = {osc_2f_5:.5e}, L-inf Err = {e_2f_5:.5e}  (Damping: {osc_cn_5/osc_2f_5:.1f}x)")
 
     # ─── PART 4: Summary ──────────────────────────────────────────────────────
     print()
+    # ─── PART 4: Summary ──────────────────────────────────────────────────────
+    print()
     print("=" * 72)
-    print("  PART 4 — SUMMARY AND CONCLUSIONS")
+    print("  PART 4 -- SUMMARY AND METHODOLOGICAL CONCLUSIONS")
     print("=" * 72)
     print("""
   1. Non-smooth payoff (kink at S=K):
-     The payoff max(S-K,0) is not differentiable at S=K.  When K does not
-     fall on a grid node, the spatial convergence order degrades from O(dS²)
-     toward O(dS).  Aligning the grid so that K is a grid node restores
-     full O(dS²) convergence.  This is an important practical consideration:
-     always choose M such that K/Smax · M is an integer.
+     The M=50 to M=100 refinement is alignment-sensitive (observed ratio 1.38,
+     order about 0.47). Do not infer the asymptotic order from that interval.
 
   2. Crank-Nicolson oscillations:
-     The CN scheme has no numerical dissipation.  The discontinuous payoff
-     derivative excites high-frequency spatial modes that CN propagates without
-     damping.  These oscillations are most visible in Gamma near S=K and at
-     coarse time grids (large dt).  The oscillations diminish as N increases
-     (smaller dt) because the initial kink smooths out more before CN begins.
+     The CN scheme has no numerical dissipation (|R_CN(infty)| = 1).
+     The discontinuous payoff derivative excites high-frequency spatial
+     modes that CN propagates without damping.  At coarse time grids
+     (N=5), this causes severe non-physical negative Gamma values
+     (e.g. Gamma = -0.139 at K=100) and an oscillation amplitude of 0.246.
 
-  3. Rannacher time-stepping:
-     Replacing the first 2 time steps with Backward Euler (Fully Implicit)
-     eliminates the oscillations because BE is L-stable and strongly damps
-     high-frequency components.  The price error is nearly identical to
-     standard CN, but the Gamma oscillations near the kink are suppressed
-     by one to two orders of magnitude.  This is the standard industrial fix
-     for CN oscillations in option pricing.
+  3. Conventional Rannacher smoothing (half-step startup):
+     Replacing the first CN interval by two Backward Euler half-steps damps
+     high-frequency components. At N=5 the reproduction script measures an
+     oscillation reduction from 0.24559 to 0.0022874 (107.364x) using its
+     explicitly defined neighbor-difference metric. This is not a universal
+     suppression factor; later CN steps begin at t=dt.
 
-  4. Practical recommendations:
-     (a) Always align the strike K with a grid node.
-     (b) Use Rannacher (2 implicit start-up steps) instead of pure CN.
-     (c) For Greeks near the kink, refine the spatial grid near K or use
-         a non-uniform grid with clustering.
+  4. Price vs Greek trade-off:
+     At N=5 the reproduction script reports maximum price errors 0.239219
+     for CN and 0.024480 for corrected Rannacher. This coarse-grid result
+     does not establish a general price-accuracy advantage.
   """)
 
     print("=" * 72)

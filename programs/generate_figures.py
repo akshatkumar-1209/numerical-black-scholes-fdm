@@ -8,8 +8,8 @@ Generates verification figures for:
    spatial floor interference; confirms O(dt) for Implicit and O(dt^2) for CN)
 3. Numerical Greeks (Delta and Gamma profiles at T=1, plus short maturity T=0.1
    near-strike Gamma spike highlighting the payoff kink impact)
-4. Non-smooth payoff & CN oscillations: Gamma oscillations under standard CN
-   vs Rannacher smoothing (2 Backward Euler start-up steps)
+4. Non-smooth payoff & CN oscillations: Gamma under standard CN vs a corrected
+   one-interval Rannacher startup (two Backward Euler half-steps)
 
 Outputs saved to 'figures/' directory.
 """
@@ -27,7 +27,8 @@ plt.rcParams['axes.titlesize'] = 13
 plt.rcParams['legend.fontsize'] = 10
 plt.rcParams['figure.titlesize'] = 14
 
-FIG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "figures")
+REPO_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+FIG_DIR = os.path.join(REPO_DIR, "figures")
 os.makedirs(FIG_DIR, exist_ok=True)
 
 # ---------------------------------------------------------
@@ -126,7 +127,7 @@ def solve_cn(K, T, r, sigma, Smax, M, N):
         V[M] = VMn
     return S, V
 
-def solve_rannacher(K, T, r, sigma, Smax, M, N, n_impl=2):
+def solve_rannacher(K, T, r, sigma, Smax, M, N, n_half_steps=2):
     dS = Smax / M
     dt = T / N
     S = np.linspace(0, Smax, M + 1)
@@ -135,32 +136,43 @@ def solve_rannacher(K, T, r, sigma, Smax, M, N, n_impl=2):
     al = 0.5 * sigma**2 * Sj**2 / dS**2 - 0.5 * r * Sj / dS
     be = -sigma**2 * Sj**2 / dS**2 - r
     ga = 0.5 * sigma**2 * Sj**2 / dS**2 + 0.5 * r * Sj / dS
+
     h = 0.5 * dt
     aL, bL, cL = -h * al, 1.0 - h * be, -h * ga
-    aR, bR, cR = h * al, 1.0 + h * be, h * ga
-    a_im, b_im, c_im = -dt * al, 1.0 - dt * be, -dt * ga
-    for step in range(N):
+    aR, bR, cR =  h * al, 1.0 + h * be,  h * ga
+
+    dt_half = 0.5 * dt
+    a_half = -dt_half * al; b_half = 1.0 - dt_half * be; c_half = -dt_half * ga
+
+    if n_half_steps < 0 or n_half_steps > 2 * N or n_half_steps % 2:
+        raise ValueError("n_half_steps must be even and between 0 and 2*N")
+    num_half = n_half_steps
+    for s in range(num_half):
+        tau = (s + 1) * dt_half
+        V0 = 0.0
+        VM = (Smax - K * exp(-r * tau))
+        rhs = V[1:M].copy()
+        rhs[0] -= a_half[0] * V0
+        rhs[-1] -= c_half[-1] * VM
+        V[0] = V0
+        V[1:M] = thomas(a_half, b_half, c_half, rhs)
+        V[M] = VM
+
+    start_step = num_half // 2
+    for step in range(start_step, N):
         tn = (step + 1) * dt
         to = step * dt
         V0n = 0.0; VMn = (Smax - K * exp(-r * tn))
         V0o = 0.0; VMo = (Smax - K * exp(-r * to))
-        if step < n_impl:
-            rhs = V[1:M].copy()
-            rhs[0] -= a_im[0] * V0n
-            rhs[-1] -= c_im[-1] * VMn
-            V[0] = V0n
-            V[1:M] = thomas(a_im, b_im, c_im, rhs)
-            V[M] = VMn
-        else:
-            vi = V[1:M]
-            rhs = bR * vi
-            rhs[1:] += aR[1:] * vi[:-1]
-            rhs[:-1] += cR[:-1] * vi[1:]
-            rhs[0] += aR[0] * V0o - aL[0] * V0n
-            rhs[-1] += cR[-1] * VMo - cL[-1] * VMn
-            V[0] = V0n
-            V[1:M] = thomas(aL, bL, cL, rhs)
-            V[M] = VMn
+        vi = V[1:M]
+        rhs = bR * vi
+        rhs[1:] += aR[1:] * vi[:-1]
+        rhs[:-1] += cR[:-1] * vi[1:]
+        rhs[0] += aR[0] * V0o - aL[0] * V0n
+        rhs[-1] += cR[-1] * VMo - cL[-1] * VMn
+        V[0] = V0n
+        V[1:M] = thomas(aL, bL, cL, rhs)
+        V[M] = VMn
     return S, V
 
 def max_error(S, V, K, T, r, sigma):
@@ -197,7 +209,7 @@ plt.loglog(ref_x, ref_y, 'k:', lw=1.5, label=r'Reference $\mathcal{O}(\Delta S^2
 
 plt.xlabel(r'Spatial Step $\Delta S$ (log scale)')
 plt.ylabel(r'$L_\infty$ Error vs Analytical (log scale)')
-plt.title(r'Spatial Convergence: $\mathcal{O}(\Delta S^2)$ Central Differences')
+plt.title(r'Spatial Refinement (alignment-sensitive near the payoff kink)')
 plt.grid(True, which="both", ls="--", alpha=0.6)
 plt.legend()
 plt.tight_layout()
@@ -330,7 +342,7 @@ M_osc = 200; N_coarse = 5
 dS_osc = Smax / M_osc
 
 S_osc, V_pure_cn = solve_cn(K, T, r, sigma, Smax, M_osc, N_coarse)
-_, V_ran = solve_rannacher(K, T, r, sigma, Smax, M_osc, N_coarse, n_impl=2)
+_, V_ran = solve_rannacher(K, T, r, sigma, Smax, M_osc, N_coarse, n_half_steps=2)
 
 gamma_pure = np.zeros(M_osc + 1)
 gamma_ran  = np.zeros(M_osc + 1)
@@ -345,7 +357,7 @@ mask_zoom = (S_osc >= 85) & (S_osc <= 115)
 plt.figure(figsize=(8, 5))
 plt.plot(S_osc[mask_zoom], gamma_exact[mask_zoom], 'k-', lw=2.5, label='Analytical Gamma (Exact Benchmark)')
 plt.plot(S_osc[mask_zoom], gamma_pure[mask_zoom], 'ro-', lw=1.8, ms=5, label=r'Standard Crank-Nicolson (Spurious $\Gamma$ Oscillation)')
-plt.plot(S_osc[mask_zoom], gamma_ran[mask_zoom], 'gs--', lw=2.0, ms=5, label='Rannacher Smoothing (2 Backward Euler Steps)')
+plt.plot(S_osc[mask_zoom], gamma_ran[mask_zoom], 'gs--', lw=2.0, ms=5, label='Rannacher (2 BE half-steps over first interval)')
 plt.axvline(K, color='gray', ls=':', label=f'Payoff Kink at Strike K={K:.0f}')
 
 plt.xlabel('Spot Price S')

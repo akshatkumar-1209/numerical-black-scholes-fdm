@@ -217,7 +217,7 @@ if __name__ == '__main__':
     print()
     print("=" * 72)
     print("  SHORT MATURITY T=0.1 — NEAR-STRIKE GREEKS")
-    print("  At T=0.1 the kink has not yet smoothed: Gamma peaks sharply at K.")
+    print("  At T=0.1 the kink remains concentrated near K; Gamma maximum is not exactly at K.")
     print("=" * 72)
 
     T_short = 0.1
@@ -231,7 +231,7 @@ if __name__ == '__main__':
     del_sh_cn, gam_sh_cn = fdm_greeks(S_sh_cn, V_sh_cn, M_sh)
 
     print(f"\n  T={T_short}, M={M_sh} (dS={dS_sh:.2f}), N={N_sh}")
-    print(f"  Analytical Gamma peak at S=K: {bs_gamma(K, K, T_short, r, sigma):.6f}")
+    print(f"  Analytical ATM Gamma at S=K: {bs_gamma(K, K, T_short, r, sigma):.6f}")
     print(f"\n  {'S':>7}  {'Delta Exact':>12}  {'|Err Impl|':>12}  {'|Err CN|':>12}  {'Gamma Exact':>13}  {'|Err Impl|':>12}  {'|Err CN|':>12}")
     print("  " + "-" * 97)
     near_S_sh = [K - 3*dS_sh, K - 2*dS_sh, K - dS_sh, K, K + dS_sh, K + 2*dS_sh, K + 3*dS_sh]
@@ -245,7 +245,7 @@ if __name__ == '__main__':
         print(f"  {s_act:>7.1f}  {da:>12.8f}  {abs(d_im-da):>12.4e}  {abs(d_cn-da):>12.4e}  {ga:>13.8f}  {abs(g_im-ga):>12.4e}  {abs(g_cn-ga):>12.4e}")
 
     print("""
-  At T=0.1 the analytical Gamma peak at S=K is much larger than at T=1.
+  At T=0.1 the analytical Gamma at S=K is much larger than at T=1; this is ATM Gamma, not the global maximum.
   Near-strike Greek errors are correspondingly larger, since the numerical
   second derivative must resolve a sharper feature with the same spatial grid.
   This confirms that short-dated option Greeks require finer spatial grids
@@ -287,14 +287,10 @@ if __name__ == '__main__':
 
     print("""
   Interpretation:
-    Both Delta and Gamma errors at the ATM node halve (or quarter) as M doubles,
-    consistent with O(dS^2) convergence. The Gamma error is typically an order
-    of magnitude larger than the Delta error at the same M, because the second
-    finite difference amplifies discretisation noise.
-
-    At M=50 the ATM node may not coincide with K, introducing a grid-alignment
-    contribution.  From M=100 onward, ratios settle near 4.0 for both Greeks,
-    confirming the theoretical spatial order.
+    The observed ratios are reported individually. M=50 is unaligned; for the
+    implicit Gamma errors the M=50->100 ratio is below one, while later ratios
+    approach but do not uniformly equal four. The CN Delta and Gamma ratios
+    from M=100 onward are near four. Do not infer second order for every pair.
   """)
 
     print("=" * 72)

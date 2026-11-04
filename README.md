@@ -70,7 +70,7 @@ Full tables (including put options) are in `results/output_8_convergence_study.t
 
 ### Spatial convergence (N=5000 fixed, vary M)
 
-Both solvers use central differences in S, giving O(dS^2) spatial accuracy. Halving dS doubles M and should reduce the L-inf error by a factor of ~4.
+The spatial stencil is formally second order for smooth solutions. Observed mesh rates vary with strike alignment and other errors; the controlled data show near-second-order ratios for M=100 to 400, not every interval.
 
 **Crank-Nicolson:**
 
@@ -141,7 +141,7 @@ Note: The analytical Delta at S=80 is 0.22192, not 0.1865 as stated in earlier d
 
 ### Delta/Gamma mesh-refinement study (N=2000, T=1)
 
-Varying M while holding N=2000 fixed confirms O(dS^2) convergence of Greeks at the ATM node:
+The mesh study varies M at N=2000. The observed rates are alignment-sensitive and do not support a second-order claim for every interval:
 
 **Crank-Nicolson:**
 
@@ -152,11 +152,11 @@ Varying M while holding N=2000 fixed confirms O(dS^2) convergence of Greeks at t
 | 200 | 2.00 | 2.500e-04 | 4.04 | 2.911e-05 | 4.07 |
 | 400 | 1.00 | 6.236e-05 | 4.01 | 7.248e-06 | 4.02 |
 
-The M=50 Gamma ratio is irregular because the ATM node does not coincide exactly with K=100 at that resolution.
+At M=50, K=100 is not a grid node (dS=8); its reported value is sampled at the nearest node, so it is not an ATM-on-node comparison.
 
 ### Near-strike behaviour at T=0.1
 
-At T=0.1 the payoff kink has not yet smoothed substantially. ATM Gamma at S=K grows from 0.018762 (T=1) to 0.062693 (T=0.1); the Gamma maximum is at S*=K exp[-(r+3 sigma?/2)T], generally not K. With the same spatial grid (M=400) the near-strike Gamma error increases proportionally, confirming that short-dated Greek computation requires finer spatial resolution.
+At T=0.1 the payoff kink has not yet smoothed substantially. ATM Gamma at S=K grows from 0.018762 (T=1) to 0.062693 (T=0.1); the Gamma maximum is at S*=K exp[-(r+3*sigma^2/2)T], generally not K. With the same spatial grid (M=400) the near-strike Gamma error increases proportionally, confirming that short-dated Greek computation requires finer spatial resolution.
 
 | S | Gamma (analytical, T=0.1) | Gamma error (CN) |
 |---|---|---|
@@ -178,7 +178,7 @@ At T=0.1 the payoff kink has not yet smoothed substantially. ATM Gamma at S=K gr
 | 200 | YES | 1.001e-02 | 4.00 |
 | 400 | YES | 2.499e-03 | 4.01 |
 
-When K is not on the grid (e.g. M=50 with dS=8, so K=100 falls between nodes), the error is larger and the ratio departs from 4. Aligning the strike with a grid node restores full O(dS^2) convergence.
+When K is not on the grid (M=50, dS=8), comparisons across the M=50 and M=100 meshes are alignment-sensitive; the M=50 to M=100 ratio is 1.38 in the controlled price study. The aligned M=100 to 400 results approach the formal second-order rate.
 
 ### CN Gamma oscillations (M=200)
 
@@ -199,17 +199,14 @@ The first nominal interval [0,dt] is replaced by two Backward Euler half-steps o
 
 L-infinity errors for M, N in {50, 100, 200, 400}. Full matrix in `results/output_11_grid_refinement_matrix.txt`.
 
-**Crank-Nicolson:**
+The combined 4x4 refinement matrix is descriptive. Since M and N vary together among entries, it does not independently establish spatial or temporal order. Consult `results/output_11_grid_refinement_matrix.txt` for all values.
 
-| M\N | N=50 | N=100 | N=200 | N=400 |
-|---|---|---|---|---|
+---|---|---|---|---|
 | M=50 | varies | varies | varies | varies |
 | M=100 | varies | varies | varies | 4.00e-02 |
 | M=200 | varies | varies | varies | 1.00e-02 |
 | M=400 | varies | varies | varies | 2.50e-03 |
 
-Moving down a column (M doubles, N fixed): error drops by ~4x — O(dS^2).  
-Moving right along a row (N doubles, M fixed): CN drops by ~4x — O(dt^2); Implicit drops by ~2x — O(dt).
 
 ---
 

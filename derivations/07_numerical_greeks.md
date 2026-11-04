@@ -1,4 +1,4 @@
-# Derivation 7: Numerical Greeks?Delta and Gamma
+# Derivation 7: Numerical Greeks: Delta and Gamma
 
 ## Analytical benchmarks
 For spot S>0 and time to maturity T>0, let `d1=[ln(S/K)+(r+sigma^2/2)T]/(sigma sqrt(T))` and `d2=d1-sigma sqrt(T)`. Then `Delta_call=N(d1)`, `Delta_put=N(d1)-1`, and for either option `Gamma=n(d1)/(S sigma sqrt(T))`.
@@ -6,7 +6,7 @@ For spot S>0 and time to maturity T>0, let `d1=[ln(S/K)+(r+sigma^2/2)T]/(sigma s
 To locate the Gamma maximum, differentiate its logarithm with respect to `x=ln(S/K)`. Since `d1=(x+(r+sigma^2/2)T)/(sigma sqrt(T))`,
 `d log Gamma/dx = -d1/(sigma sqrt(T))-1`. The stationary point satisfies `d1=-sigma sqrt(T)`, hence
 `S*=K exp[-(r+3 sigma^2/2)T]`.
-This is generally below K for positive r and sigma. For the benchmark parameters, S*?89.58 and Gamma(S*)?0.02183 at T=1; at T=0.1, S*?98.91. ATM Gamma at K is 0.01876202 (T=1) and 0.06269314 (T=0.1); these are distinct quantities.
+This is generally below K for positive r and sigma. For the benchmark parameters, S* approximately 89.58 and Gamma(S*) approximately 0.02183 at T=1; at T=0.1, S* approximately 98.91. ATM Gamma at K is 0.01876202 (T=1) and 0.06269314 (T=0.1); these are distinct quantities.
 
 ## Grid formulas
 On `S_j=j dS`, central differences are

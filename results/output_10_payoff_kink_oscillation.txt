@@ -1,18 +1,18 @@
-========================================================================
-  NUMERICAL BLACK-SCHOLES FDM — WEEK 10
+﻿========================================================================
+  NUMERICAL BLACK-SCHOLES FDM ΓÇö WEEK 10
   Payoff Kink, CN Oscillations & Rannacher Smoothing
 ========================================================================
   Parameters: K=100.0, T=1.0, r=0.05, sigma=0.2, Smax=400.0
 
 ========================================================================
-  PART 1 — NON-SMOOTH PAYOFF: L-inf ERROR WITH AND WITHOUT KINK
+  PART 1 ΓÇö NON-SMOOTH PAYOFF: L-inf ERROR WITH AND WITHOUT KINK
 ========================================================================
 
   The payoff V(S,T=0) = max(S-K,0) is continuous but not differentiable
   at S=K (the 'kink').  The exact solution at maturity satisfies:
 
        V'(K+,0) = 1,   V'(K-,0) = 0   (discontinuous derivative)
-       V''(S,0) = δ(S-K)               (distributional second derivative)
+       V''(S,0) = ╬┤(S-K)               (distributional second derivative)
 
   This non-smoothness degrades the formal O(dS^2) spatial order to
   approximately O(dS^1) unless the strike K coincides with a grid node.
@@ -41,7 +41,7 @@
      400     1.000           YES   2.49862e-03      4.01
 
 ========================================================================
-  PART 2 — CRANK-NICOLSON OSCILLATIONS FROM THE PAYOFF KINK
+  PART 2 ΓÇö CRANK-NICOLSON OSCILLATIONS FROM THE PAYOFF KINK
 ========================================================================
 
   For very coarse time grids (large dt), the Crank-Nicolson method can
@@ -66,7 +66,7 @@
      500     0.0020        0.019764      0.018791        0.017707  1.0842e-03
 
 ========================================================================
-  PART 3 — RANNACHER TIME-STEPPING (IMPLICIT START-UP)
+  PART 3 ΓÇö RANNACHER TIME-STEPPING (IMPLICIT START-UP)
 ========================================================================
 
   The Rannacher fix: replace the first 2 time steps with Fully Implicit
@@ -89,15 +89,15 @@
      200   1.00026e-02       1.00524e-02      1.0842e-03      1.0842e-03
 
 ========================================================================
-  PART 4 — SUMMARY AND CONCLUSIONS
+  PART 4 ΓÇö SUMMARY AND CONCLUSIONS
 ========================================================================
 
   1. Non-smooth payoff (kink at S=K):
      The payoff max(S-K,0) is not differentiable at S=K.  When K does not
-     fall on a grid node, the spatial convergence order degrades from O(dS²)
+     fall on a grid node, the spatial convergence order degrades from O(dS┬▓)
      toward O(dS).  Aligning the grid so that K is a grid node restores
-     full O(dS²) convergence.  This is an important practical consideration:
-     always choose M such that K/Smax · M is an integer.
+     full O(dS┬▓) convergence.  This is an important practical consideration:
+     always choose M such that K/Smax ┬╖ M is an integer.
 
   2. Crank-Nicolson oscillations:
      The CN scheme has no numerical dissipation.  The discontinuous payoff

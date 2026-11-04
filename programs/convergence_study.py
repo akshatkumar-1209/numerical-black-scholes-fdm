@@ -11,8 +11,22 @@ Outputs
 -------
 1. Price comparison tables (FDM vs analytical, multiple S-nodes)
 2. Spatial convergence table  (fixed N=5000, vary M)
-3. Temporal convergence table (fixed M=800,  vary N)
+3. Temporal convergence table (same-grid Richardson reference: fixed M=200, vary N,
+   reference N_ref=12800 on same grid to isolate temporal error)
 4. Observed orders of convergence (log2 of error ratios)
+
+Note on temporal study design
+------------------------------
+Using an external analytical solution as the reference conflates the remaining
+spatial discretisation error with the temporal error being measured.  When the
+spatial floor (~6e-4 for M=800) is comparable to or larger than the temporal
+error at fine N, the apparent convergence order collapses to zero.
+
+The correct procedure is to fix M (here M=200) and compare V(M,N) against a
+reference solution V(M, N_ref) computed on the SAME spatial grid with a very
+large N_ref (12800).  Both solutions share the same spatial discretisation, so
+the difference isolates the temporal component.  This gives clean orders:
+Implicit O(dt^1), CN O(dt^2).
 
 Author: Akshat Kumar
 """
@@ -69,21 +83,19 @@ def thomas(a, b, c, d):
 def solve_implicit(K, T, r, sigma, Smax, M, N, opt='call'):
     """
     Backward-Euler (fully implicit) finite-difference solver.
-    Accuracy: O(dS^2) spatial, O(dtau) temporal.
+    Accuracy: O(dS^2) spatial, O(dt) temporal.
     Unconditionally stable.
     """
     dS = Smax / M
     dt = T / N
     S  = np.linspace(0, Smax, M + 1)
-    # Terminal payoff
     V  = np.maximum(S - K, 0.0) if opt == 'call' else np.maximum(K - S, 0.0)
-    Sj = np.arange(1, M) * dS          # interior nodes
+    Sj = np.arange(1, M) * dS
 
     al = 0.5 * sigma**2 * Sj**2 / dS**2 - 0.5 * r * Sj / dS
     be = -sigma**2 * Sj**2 / dS**2 - r
     ga = 0.5 * sigma**2 * Sj**2 / dS**2 + 0.5 * r * Sj / dS
 
-    # LHS coefficients  (1 - dt*L)
     a = -dt * al
     b = 1.0 - dt * be
     c = -dt * ga
@@ -110,7 +122,7 @@ def solve_implicit(K, T, r, sigma, Smax, M, N, opt='call'):
 def solve_cn(K, T, r, sigma, Smax, M, N, opt='call'):
     """
     Crank-Nicolson (theta=1/2) finite-difference solver.
-    Accuracy: O(dS^2) spatial, O(dtau^2) temporal.
+    Accuracy: O(dS^2) spatial, O(dt^2) temporal.
     Unconditionally stable.
     """
     dS = Smax / M
@@ -124,9 +136,7 @@ def solve_cn(K, T, r, sigma, Smax, M, N, opt='call'):
     ga = 0.5 * sigma**2 * Sj**2 / dS**2 + 0.5 * r * Sj / dS
 
     h  = 0.5 * dt
-    # LHS: (I - h*L)
     aL =  -h * al;  bL = 1.0 - h * be;  cL = -h * ga
-    # RHS: (I + h*L)
     aR =   h * al;  bR = 1.0 + h * be;  cR =  h * ga
 
     for step in range(N):
@@ -154,8 +164,8 @@ def solve_cn(K, T, r, sigma, Smax, M, N, opt='call'):
 # Error metrics
 # ─────────────────────────────────────────────────────────────────────────────
 
-def linf_error(S, V, K, T, r, sigma, opt):
-    """L-infinity error at interior nodes."""
+def linf_error_vs_analytic(S, V, K, T, r, sigma, opt):
+    """L-infinity error at interior nodes vs analytical solution."""
     errs = []
     for j in range(1, len(S) - 1):
         if S[j] > 0:
@@ -163,15 +173,9 @@ def linf_error(S, V, K, T, r, sigma, opt):
             errs.append(abs(V[j] - exact))
     return max(errs) if errs else 0.0
 
-def atm_error(S, V, K, T, r, sigma, Smax, M, opt):
-    """Error at the at-the-money node (S nearest K)."""
-    j = min(M, max(1, round(K / (Smax / M))))
-    exact = bs_price(S[j], K, T, r, sigma, opt)
-    return abs(V[j] - exact), S[j], V[j], exact
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Convergence order
-# ─────────────────────────────────────────────────────────────────────────────
+def linf_error_vs_reference(V_coarse, V_ref):
+    """L-infinity error of interior nodes against a reference solution on the same grid."""
+    return np.max(np.abs(V_coarse[1:-1] - V_ref[1:-1]))
 
 def obs_order(e1, e2, h1, h2):
     """Observed order p from  e ~ C*h^p."""
@@ -185,7 +189,6 @@ def obs_order(e1, e2, h1, h2):
 
 if __name__ == '__main__':
 
-    # Standard benchmark parameters
     K     = 100.0
     T     = 1.0
     r     = 0.05
@@ -193,7 +196,6 @@ if __name__ == '__main__':
     Smax  = 400.0
     opt   = 'call'
 
-    # Reference analytical price at S=K
     v_exact_atm = bs_call(K, K, T, r, sigma)
     print("=" * 72)
     print("  NUMERICAL BLACK-SCHOLES FDM — WEEKS 7 & 8")
@@ -245,14 +247,13 @@ if __name__ == '__main__':
     print("=" * 72)
 
     M_values   = [25, 50, 100, 200, 400]
-    N_spatial  = 5000   # large N: temporal error negligible → isolates spatial order
-    N_values   = [50, 100, 200, 400, 800]
-    M_temporal = 800    # large M: spatial floor ~3e-5 → below temporal errors at low N
+    N_spatial  = 5000   # large N: temporal error negligible -> isolates spatial order
 
     # ── 8a: Spatial convergence ──
     print("\n  [8a] SPATIAL CONVERGENCE STUDY (N=5000 fixed, vary M)")
     print("       Large N ensures temporal error is negligible.")
     print("       Expected: O(dS^2) -> error ratios ~4.0")
+    print("       Note: M=50 (dS=8) has K between nodes -> ratio irregular (grid alignment effect).")
     print()
 
     for solver_name, solver in [("Fully Implicit", solve_implicit),
@@ -264,31 +265,41 @@ if __name__ == '__main__':
         for M in M_values:
             dS = Smax / M
             S_g, V_g = solver(K, T, r, sigma, Smax, M, N_spatial, opt)
-            e = linf_error(S_g, V_g, K, T, r, sigma, opt)
+            e = linf_error_vs_analytic(S_g, V_g, K, T, r, sigma, opt)
             ratio = prev_e / e if prev_e and e > 0 else float('nan')
             order = obs_order(prev_e, e, prev_dS, dS) if prev_e else float('nan')
-            note = "  ← K not on grid" if M == 50 else ""
+            note = "  <- K not on grid" if M == 50 else ""
             print(f"  {M:>6}  {dS:>8.2f}  {e:>13.5e}  {ratio:>8.2f}  {order:>12.3f}{note}")
             prev_e, prev_dS = e, dS
         print()
 
-    # ── 8b: Temporal convergence ──
-    print("  [8b] TEMPORAL CONVERGENCE STUDY (M=800 fixed, vary N)")
-    print("       M=800 → dS=0.5 → spatial floor ≈ 3e-5 (well below temporal errors at low N).")
-    print("       Expected: Implicit O(dt^1) → ratios ≈ 2.0")
-    print("                 CN       O(dt^2) → ratios ≈ 4.0")
+    # ── 8b: Temporal convergence — same-grid Richardson reference ──
+    print("  [8b] TEMPORAL CONVERGENCE STUDY")
+    print("       Method: same-grid Richardson reference (M=200 fixed, N_ref=12800).")
+    print("       Error = max|V(M,N) - V(M, N_ref)| over interior nodes.")
+    print("       This isolates temporal error; both solutions share the same spatial grid.")
+    print("       Expected: Implicit O(dt^1) -> ratios ~2.0")
+    print("                 CN       O(dt^2) -> ratios ~4.0")
     print()
+
+    M_temporal = 200    # fixed spatial grid
+    N_ref      = 12800  # reference: very fine in time, same spatial grid
+    N_values   = [50, 100, 200, 400, 800]
 
     for solver_name, solver, exp_order in [("Fully Implicit", solve_implicit, 1),
                                              ("Crank-Nicolson", solve_cn,       2)]:
         print(f"  --- {solver_name}  [expected O(dt^{exp_order})] ---")
         print(f"  {'N':>6}  {'dt':>10}  {'L-inf Error':>13}  {'Ratio':>8}  {'Obs. Order':>12}")
         print("  " + "-" * 58)
+
+        # Compute reference on same spatial grid
+        _, V_ref = solver(K, T, r, sigma, Smax, M_temporal, N_ref, opt)
+
         prev_e, prev_dt = None, None
         for N in N_values:
             dt = T / N
             S_g, V_g = solver(K, T, r, sigma, Smax, M_temporal, N, opt)
-            e = linf_error(S_g, V_g, K, T, r, sigma, opt)
+            e = linf_error_vs_reference(V_g, V_ref)
             ratio = prev_e / e if prev_e and e > 0 else float('nan')
             order = obs_order(prev_e, e, prev_dt, dt) if prev_e else float('nan')
             print(f"  {N:>6}  {dt:>10.5f}  {e:>13.5e}  {ratio:>8.2f}  {order:>12.3f}")
@@ -299,22 +310,32 @@ if __name__ == '__main__':
     print("  [8c] INTERPRETATION")
     print("  " + "-" * 68)
     print("""
-  Spatial Order (both methods):
+  Spatial order (both methods):
     Both Fully Implicit and Crank-Nicolson use central differences in S,
-    giving O(dS^2) spatial truncation error.  Halving dS (M→2M) should
+    giving O(dS^2) spatial truncation error.  Halving dS (M->2M) should
     reduce the error by a factor of ~4.  The tables confirm ratios of
     approximately 4.0 once K lies on a grid node.  The M=50 anomaly
-    (dS=8, K=100 lies between nodes) causes the ratio to appear irregular
+    (dS=8, K=100 falls between nodes) causes the ratio to appear irregular
     — this is a grid-alignment effect, not a solver defect.
 
-  Temporal Order:
+  Temporal order (same-grid Richardson reference):
+    Fixing M=200 and comparing V(M,N) against V(M, 12800) on the same
+    spatial grid cleanly isolates the temporal component of the error.
+
     Fully Implicit uses Backward Euler (theta=1), giving O(dt) temporal
-    accuracy.  Halving N (dt→dt/2) reduces the error by a factor of ~2,
+    accuracy.  Halving N (dt->dt/2) reduces the error by a factor of ~2.0,
     confirming first-order convergence in time.
 
     Crank-Nicolson uses the trapezoid rule (theta=1/2), giving O(dt^2)
-    temporal accuracy.  Halving N reduces the error by a factor of ~4,
+    temporal accuracy.  Halving N reduces the error by a factor of ~4.0,
     confirming second-order convergence in time.
+
+    Important note: measuring temporal error against an external analytical
+    solution on a large M (e.g. M=800) can produce misleading results when
+    the spatial floor (~6e-4 for M=800) is comparable to the temporal error
+    at fine N.  The CN error then appears to stall at ~6e-4 regardless of N,
+    giving an apparent convergence order of zero.  The same-grid reference
+    avoids this artefact entirely.
 
   Stability:
     Both methods are unconditionally stable (no CFL restriction).

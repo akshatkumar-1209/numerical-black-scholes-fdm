@@ -1,0 +1,43 @@
+========================================================================
+  NUMERICAL BLACK-SCHOLES FDM — REPRODUCTION OF ALL RESULTS
+  K=100.0, T=1.0, r=0.05, sigma=0.2, Smax=400.0
+  Analytical ATM call: 10.45058357
+========================================================================
+  Fully Implicit: call/put L-inf benchmark errors = 1.100888e-02, 1.088998e-02; max parity residual = 1.191934e-04
+  Crank-Nicolson: call/put L-inf benchmark errors = 1.000748e-02, 1.000748e-02; max parity residual = 3.971806e-09
+
+[1/5] 4x4 Grid Refinement Matrix (M, N in {50, 100, 200, 400})
+  PASSED: CN spatial ratio M=200->M=400 (N=400 fixed) = 4.0073e+00  (in [3.50e+00, 4.50e+00])
+  -> Written: C:\Users\Asus\Desktop\SOP\SOP_REMOTE_CHECKOUT\results\output_11_grid_refinement_matrix.txt
+
+[2/5] Spatial Convergence (N=5000, vary M in {100, 200, 400})
+  PASSED: Implicit spatial ratio M=100->200 = 3.9367e+00  (in [3.50e+00, 4.50e+00])
+  PASSED: Implicit spatial ratio M=200->400 = 3.7835e+00  (in [3.50e+00, 4.50e+00])
+  PASSED: CN spatial ratio M=100->200 = 3.9969e+00  (in [3.50e+00, 4.50e+00])
+  PASSED: CN spatial ratio M=200->400 = 4.0056e+00  (in [3.50e+00, 4.50e+00])
+
+[3/5] Temporal Convergence — same-grid Richardson reference (M=200, N_ref=12800)
+  Reference refinement N_ref=12800->25600: Implicit change=4.197888e-05; CN change=1.160432e-09
+  PASSED: Implicit temporal ratio step 1 (expect ~2.0) = 2.0066e+00  (in [1.70e+00, 2.30e+00])
+  PASSED: Implicit temporal ratio step 2 (expect ~2.0) = 2.0152e+00  (in [1.70e+00, 2.30e+00])
+  PASSED: Implicit temporal ratio step 3 (expect ~2.0) = 2.0319e+00  (in [1.70e+00, 2.30e+00])
+  PASSED: CN temporal ratio step 1 (expect ~4.0) = 3.9998e+00  (in [3.50e+00, 4.50e+00])
+  PASSED: CN temporal ratio step 2 (expect ~4.0) = 4.0006e+00  (in [3.50e+00, 4.50e+00])
+  PASSED: CN temporal ratio step 3 (expect ~4.0) = 4.0029e+00  (in [3.50e+00, 4.50e+00])
+
+[4/5] Numerical Greeks at ATM (M=400, N=2000)
+  PASSED: CN ATM Delta error (M=400, N=2000) = 6.2359e-05  (in [1.00e-07, 2.00e-04])
+  PASSED: CN ATM Gamma error (M=400, N=2000) = 7.2484e-06  (in [1.00e-08, 5.00e-05])
+
+[5/5] Rannacher vs CN — Gamma oscillation at N=5 (M=200)
+  PASSED: CN Gamma oscillation at N=5 (expect large) = 2.4559e-01  (in [5.00e-02, 1.00e+00])
+  PASSED: Rannacher Gamma oscillation at N=5 (expect small) = 2.2874e-03  (in [0.00e+00, 1.00e-02])
+  N=5 max price errors: CN=2.392190e-01, corrected Rannacher=2.447956e-02
+  N=5 oscillation suppression: 107.364x
+
+========================================================================
+  ALL ASSERTIONS PASSED
+  Spatial order: CN ~4.0 (O(dS^2)), Implicit ~4.0 (O(dS^2))
+  Temporal order: CN ~4.0 (O(dt^2)), Implicit ~2.0 (O(dt))
+  [same-grid Richardson reference used for temporal study]
+========================================================================

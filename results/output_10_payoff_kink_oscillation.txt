@@ -1,18 +1,18 @@
-﻿========================================================================
-  NUMERICAL BLACK-SCHOLES FDM ΓÇö WEEK 10
+========================================================================
+  NUMERICAL BLACK-SCHOLES FDM -- WEEK 10
   Payoff Kink, CN Oscillations & Rannacher Smoothing
 ========================================================================
   Parameters: K=100.0, T=1.0, r=0.05, sigma=0.2, Smax=400.0
 
 ========================================================================
-  PART 1 ΓÇö NON-SMOOTH PAYOFF: L-inf ERROR WITH AND WITHOUT KINK
+  PART 1 -- NON-SMOOTH PAYOFF: L-inf ERROR WITH AND WITHOUT KINK
 ========================================================================
 
   The payoff V(S,T=0) = max(S-K,0) is continuous but not differentiable
   at S=K (the 'kink').  The exact solution at maturity satisfies:
 
        V'(K+,0) = 1,   V'(K-,0) = 0   (discontinuous derivative)
-       V''(S,0) = ╬┤(S-K)               (distributional second derivative)
+       V''(S,0) = delta(S-K)               (distributional second derivative)
 
   This non-smoothness degrades the formal O(dS^2) spatial order to
   approximately O(dS^1) unless the strike K coincides with a grid node.
@@ -41,7 +41,7 @@
      400     1.000           YES   2.49862e-03      4.01
 
 ========================================================================
-  PART 2 ΓÇö CRANK-NICOLSON OSCILLATIONS FROM THE PAYOFF KINK
+  PART 2 -- CRANK-NICOLSON OSCILLATIONS FROM THE PAYOFF KINK
 ========================================================================
 
   For very coarse time grids (large dt), the Crank-Nicolson method can
@@ -54,7 +54,7 @@
   (the second derivative of the option price w.r.t. S) near S=K.
   
   CN Gamma oscillation study (M=200, K=100.0)
-  Gamma near S=K: analytical peak = 0.018762
+  Gamma near S=K: analytical ATM value = 0.018762
 
        N         dt   Gamma at K-dS    Gamma at K   Gamma at K+dS    Max|Osc|
   ----------------------------------------------------------------------
@@ -66,59 +66,66 @@
      500     0.0020        0.019764      0.018791        0.017707  1.0842e-03
 
 ========================================================================
-  PART 3 ΓÇö RANNACHER TIME-STEPPING (IMPLICIT START-UP)
+  PART 3 -- CONVENTIONAL RANNACHER TIME-STEPPING (HALF-STEP BACKWARD EULER)
 ========================================================================
 
-  The Rannacher fix: replace the first 2 time steps with Fully Implicit
-  (Backward Euler) steps.  Backward Euler is L-stable and strongly damps
-  high-frequency modes, removing the oscillation introduced by the kink.
-  Subsequent steps use Crank-Nicolson, preserving the O(dt^2) accuracy
-  in the smooth region.
+  Conventional Rannacher startup (Rannacher 1984, Giles & Carter 2006):
+    The first Crank-Nicolson interval [0, dt] is replaced by two Backward Euler
+    half-steps of size dt/2; subsequent intervals use full-step CN.
+    Because Backward Euler is L-stable (R(z) -> 0 as z -> infty), high-frequency
+    modes from the Dirac-delta second derivative of the payoff kink are strongly
+    damped.  Subsequent steps resume Crank-Nicolson with step dt, preserving the
+    global second-order O(dt^2) convergence.
 
-  We compare: Standard CN vs Rannacher CN for various N.
+  Below we compare standard CN, the conventional one-interval startup
+  (two half-steps), a four-half-step extended startup, and two full BE steps.
   
-  M=200, comparing Standard CN vs Rannacher CN
+  Primary Study: Standard CN vs Conventional Rannacher (2 half-steps over first interval)
+  Grid: M=200 (dS=2.00), K=100.0
 
-       N      CN L-inf   Rannacher L-inf    CN Gamma Osc   Ran Gamma Osc
-  ------------------------------------------------------------------------
-       5   2.39219e-01       7.89013e-02      2.4559e-01      1.4043e-03
-      10   3.39422e-02       2.75527e-02      4.0316e-02      1.2840e-03
-      20   9.44552e-03       1.43811e-02      1.1405e-03      1.0874e-03
-      50   9.91465e-03       1.07046e-02      1.0841e-03      1.0845e-03
-     100   9.98497e-03       1.01837e-02      1.0842e-03      1.0843e-03
-     200   1.00026e-02       1.00524e-02      1.0842e-03      1.0842e-03
+       N      CN L-inf   Ran(2h) L-inf   CN Gamma Osc   Ran Gamma Osc    Damping
+  --------------------------------------------------------------------------
+       5   2.39219e-01     2.44796e-02     2.4559e-01      2.2874e-03     107.4x
+      10   3.39422e-02     1.28997e-02     4.0316e-02      1.5217e-03      26.5x
+      20   9.44552e-03     1.06741e-02     1.1405e-03      1.0817e-03       1.1x
+      50   9.91465e-03     1.01147e-02     1.0841e-03      1.0842e-03       1.0x
+     100   9.98497e-03     1.00350e-02     1.0842e-03      1.0842e-03       1.0x
+     200   1.00026e-02     1.00151e-02     1.0842e-03      1.0842e-03       1.0x
+
+  Method Variant Comparison at N=5 (Coarsest grid, severe kink shock):
+  --------------------------------------------------------------------------
+  Standard Crank-Nicolson        : Gamma Osc = 2.45586e-01, L-inf Err = 2.39219e-01
+  Rannacher (2 half-steps dt/2)  : Gamma Osc = 2.28742e-03, L-inf Err = 2.44796e-02  (Damping: 107.4x)
+  Rannacher (4 half-steps dt/2)  : Gamma Osc = 1.07716e-03, L-inf Err = 4.29895e-02  (Damping: 228.0x)
+  Implicit Startup (2 full steps): Gamma Osc = 1.40431e-03, L-inf Err = 7.89013e-02  (Damping: 174.9x)
+
 
 ========================================================================
-  PART 4 ΓÇö SUMMARY AND CONCLUSIONS
+  PART 4 -- SUMMARY AND METHODOLOGICAL CONCLUSIONS
 ========================================================================
 
   1. Non-smooth payoff (kink at S=K):
-     The payoff max(S-K,0) is not differentiable at S=K.  When K does not
-     fall on a grid node, the spatial convergence order degrades from O(dS┬▓)
-     toward O(dS).  Aligning the grid so that K is a grid node restores
-     full O(dS┬▓) convergence.  This is an important practical consideration:
-     always choose M such that K/Smax ┬╖ M is an integer.
+     The M=50 to M=100 refinement is alignment-sensitive (observed ratio 1.38,
+     order about 0.47). Do not infer the asymptotic order from that interval.
 
   2. Crank-Nicolson oscillations:
-     The CN scheme has no numerical dissipation.  The discontinuous payoff
-     derivative excites high-frequency spatial modes that CN propagates without
-     damping.  These oscillations are most visible in Gamma near S=K and at
-     coarse time grids (large dt).  The oscillations diminish as N increases
-     (smaller dt) because the initial kink smooths out more before CN begins.
+     The CN scheme has no numerical dissipation (|R_CN(infty)| = 1).
+     The discontinuous payoff derivative excites high-frequency spatial
+     modes that CN propagates without damping.  At coarse time grids
+     (N=5), this causes severe non-physical negative Gamma values
+     (e.g. Gamma = -0.139 at K=100) and an oscillation amplitude of 0.246.
 
-  3. Rannacher time-stepping:
-     Replacing the first 2 time steps with Backward Euler (Fully Implicit)
-     eliminates the oscillations because BE is L-stable and strongly damps
-     high-frequency components.  The price error is nearly identical to
-     standard CN, but the Gamma oscillations near the kink are suppressed
-     by one to two orders of magnitude.  This is the standard industrial fix
-     for CN oscillations in option pricing.
+  3. Conventional Rannacher smoothing (half-step startup):
+     Replacing the first CN interval by two Backward Euler half-steps damps
+     high-frequency components. At N=5 the reproduction script measures an
+     oscillation reduction from 0.24559 to 0.0022874 (107.364x) using its
+     explicitly defined neighbor-difference metric. This is not a universal
+     suppression factor; later CN steps begin at t=dt.
 
-  4. Practical recommendations:
-     (a) Always align the strike K with a grid node.
-     (b) Use Rannacher (2 implicit start-up steps) instead of pure CN.
-     (c) For Greeks near the kink, refine the spatial grid near K or use
-         a non-uniform grid with clustering.
+  4. Price vs Greek trade-off:
+     At N=5 the reproduction script reports maximum price errors 0.239219
+     for CN and 0.024480 for corrected Rannacher. This coarse-grid result
+     does not establish a general price-accuracy advantage.
   
 ========================================================================
   WEEK 10 STUDY COMPLETE

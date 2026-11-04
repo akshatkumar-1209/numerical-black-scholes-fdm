@@ -50,7 +50,7 @@ Boundary corrections to RHS: $\text{rhs}[0] \mathrel{-}= a_1 V_0^{n+1}$; $\text{
 ## 4. Stability
 
 The diagonal dominance condition: $b_j - (|a_j| + |c_j|) = 1 + r\Delta\tau > 0$ always.  
-Therefore the matrix is an M-matrix and the scheme is **unconditionally stable**.
+When the spatial off-diagonal signs meet the required conditions, the matrix has the corresponding M-matrix structure and is nonsingular. This algebraic property is distinct from a stability proof for the complete discretisation; do not generalise it to every mesh without checking coefficient signs and boundary treatment.
 
 ---
 

@@ -156,7 +156,7 @@ The M=50 Gamma ratio is irregular because the ATM node does not coincide exactly
 
 ### Near-strike behaviour at T=0.1
 
-At T=0.1 the payoff kink has not yet smoothed substantially. The Gamma peak at S=K grows from 0.01876 (T=1) to 0.06269 (T=0.1). With the same spatial grid (M=400) the near-strike Gamma error increases proportionally, confirming that short-dated Greek computation requires finer spatial resolution.
+At T=0.1 the payoff kink has not yet smoothed substantially. ATM Gamma at S=K grows from 0.018762 (T=1) to 0.062693 (T=0.1); the Gamma maximum is at S*=K exp[-(r+3 sigma?/2)T], generally not K. With the same spatial grid (M=400) the near-strike Gamma error increases proportionally, confirming that short-dated Greek computation requires finer spatial resolution.
 
 | S | Gamma (analytical, T=0.1) | Gamma error (CN) |
 |---|---|---|
@@ -191,20 +191,9 @@ The Crank-Nicolson method has no numerical dissipation. At coarse time grids the
 | 20 | 0.0500 | 0.018811 | 1.14e-03 |
 | 50 | 0.0200 | 0.018790 | 1.08e-03 |
 
-### Rannacher time-stepping (M=200)
+### Conventional Rannacher startup (M=200)
 
-Replacing the first two time steps with Backward Euler (Fully Implicit) eliminates the oscillation. Backward Euler is L-stable and damps high-frequency components.
-
-| N | CN L-inf | Rannacher L-inf | CN Gamma osc | Rannacher Gamma osc |
-|---|---|---|---|---|
-| 5 | 2.392e-01 | 7.890e-02 | 2.456e-01 | 1.404e-03 |
-| 10 | 3.394e-02 | 2.755e-02 | 4.032e-02 | 1.284e-03 |
-| 20 | 9.446e-03 | 1.438e-02 | 1.141e-03 | 1.087e-03 |
-| 50 | 9.915e-03 | 1.070e-02 | 1.084e-03 | 1.085e-03 |
-
-**Note:** At N=20 and N=50, Rannacher's price error is marginally larger than pure CN (e.g. 1.44e-2 vs 9.45e-3 at N=20). This is expected: the two implicit start-up steps reduce temporal order locally. The benefit of Rannacher is in Gamma stability near the kink, not in price accuracy.
-
----
+The first nominal interval [0,dt] is replaced by two Backward Euler half-steps of dt/2; then N-1 CN intervals reach T exactly. At N=5, the selected Gamma oscillation metric falls from 0.245586 to 0.00228742 (107.4x); maximum price errors are 0.239219 and 0.0244796. This is a measured coarse-grid result, not universal suppression.
 
 ## Week 11 — 4x4 refinement matrix
 
@@ -230,7 +219,7 @@ Moving right along a row (N doubles, M fixed): CN drops by ~4x — O(dt^2); Impl
 
 **Temporal convergence reference:** The same-grid Richardson reference (N_ref=12800 on the same spatial grid M=200) is used throughout. Using an external analytical solution as the reference conflates spatial and temporal errors and can produce misleading stall behaviour in the CN temporal order.
 
-**Rannacher caveats:** The Rannacher scheme's price error at N=20 (1.44e-2) is larger than standard CN (9.45e-3) at the same N. The improvement is confined to Gamma oscillation suppression near the strike.
+**Rannacher caveats:** The corrected Rannacher scheme's price error at N=20 (1.06741e-2) is slightly larger than standard CN (9.44552e-3) at the same N. The improvement is confined to Gamma oscillation suppression near the strike.
 
 **Broken path correction:** Earlier documentation incorrectly referenced `programs/black_scholes_analytic.py`. The correct filename is `programs/black_scholes.py`.
 
@@ -247,7 +236,7 @@ Derivations are in the `derivations/` directory:
 - `05_stability_analysis.md` — Von Neumann stability analysis
 - `06_convergence_analysis.md` — Convergence order derivation
 - `07_numerical_greeks.md` — Greeks from the FDM solution
-- `08_payoff_kink_rannacher.md` — Kink treatment and Rannacher's method
+- `08_payoff_kink_and_cn_oscillations.md` — Kink treatment and Rannacher's method
 
 ---
 

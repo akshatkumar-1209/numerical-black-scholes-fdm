@@ -1,142 +1,23 @@
-# Derivation 7: Numerical Greeks — Delta and Gamma
+# Derivation 7: Numerical Greeks?Delta and Gamma
 
-## Overview
+## Analytical benchmarks
+For spot S>0 and time to maturity T>0, let `d1=[ln(S/K)+(r+sigma^2/2)T]/(sigma sqrt(T))` and `d2=d1-sigma sqrt(T)`. Then `Delta_call=N(d1)`, `Delta_put=N(d1)-1`, and for either option `Gamma=n(d1)/(S sigma sqrt(T))`.
 
-This document derives the finite-difference approximations for Delta and Gamma computed from the FDM price surface, and analyses their accuracy, particularly near the strike price.
+To locate the Gamma maximum, differentiate its logarithm with respect to `x=ln(S/K)`. Since `d1=(x+(r+sigma^2/2)T)/(sigma sqrt(T))`,
+`d log Gamma/dx = -d1/(sigma sqrt(T))-1`. The stationary point satisfies `d1=-sigma sqrt(T)`, hence
+`S*=K exp[-(r+3 sigma^2/2)T]`.
+This is generally below K for positive r and sigma. For the benchmark parameters, S*?89.58 and Gamma(S*)?0.02183 at T=1; at T=0.1, S*?98.91. ATM Gamma at K is 0.01876202 (T=1) and 0.06269314 (T=0.1); these are distinct quantities.
 
----
+## Grid formulas
+On `S_j=j dS`, central differences are
+`Delta_j=(V_{j+1}-V_{j-1})/(2 dS)` and
+`Gamma_j=(V_{j+1}-2V_j+V_{j-1})/(dS)^2`.
+Taylor expansion gives second-order truncation error where the solution is smooth. The payoff is nonsmooth at expiry, and finite-grid error also depends on strike alignment, boundary truncation, time error and the evaluated node; formal stencil order alone does not guarantee an observed rate for every pair of meshes.
 
-## 1. Definitions
+## Verified benchmark results
+For CN with M=400, N=2000 and T=1, at the aligned strike node S=K=100, call Delta is 0.63676829 (analytical 0.63683065; absolute error 6.2359e-5), and call Gamma is 0.01876927 (analytical 0.01876202; error 7.2484e-6). Put Delta is -0.36323171 (analytical -0.36316935; same error); call and put Gamma coincide to the printed precision. At S=90, the exact Gamma is 0.02181975, illustrating that the Gamma peak is away from K. At T=0.1, ATM Gamma is 0.06269314; do not conflate this with the global maximum.
 
-In the Black-Scholes framework, the **Greeks** measure sensitivities of the option price to market variables.
+For the M=50,100,200,400 mesh study, Delta error ratios are approximately 4.66, 4.04, 4.01. Gamma ratios are approximately 0.71, 4.07, 4.02: the first interval is irregular (M=50 has dS=8 and K lies between nodes). The data do not establish second order on every interval. See `../results/output_9_numerical_greeks.txt` for full call/put tables and maturity results.
 
-### Delta (Delta = dV/dS)
-
-Delta is the rate of change of the option price with respect to the underlying spot price:
-
-$$\Delta = \frac{\partial V}{\partial S}$$
-
-**Analytical Black-Scholes Delta:**
-
-$$\Delta_{\text{call}} = N(d_1), \qquad \Delta_{\text{put}} = N(d_1) - 1$$
-
-where `d_1 = [ln(S/K) + (r + sigma^2/2)T] / (sigma*sqrt(T))` and `N(·)` is the standard normal CDF.
-
-### Gamma (Gamma = d^2V/dS^2)
-
-Gamma is the second derivative of option price with respect to spot:
-
-$$\Gamma = \frac{\partial^2 V}{\partial S^2}$$
-
-**Analytical Black-Scholes Gamma (same for call and put):**
-
-$$\Gamma = \frac{n(d_1)}{S \sigma \sqrt{T}}$$
-
-where `n(·)` is the standard normal PDF.
-
----
-
-## 2. Numerical Approximations from the FDM Grid
-
-Given the price vector `V_j = V(S_j)` from the FDM solver on the uniform grid `S_j = j * dS`, we compute:
-
-### Numerical Delta
-
-**Central finite difference** (second-order accurate, `O(dS^2)`):
-
-$$\Delta_j^h = \frac{V_{j+1} - V_{j-1}}{2\,\Delta S}$$
-
-This is a **direct post-processing step** — no additional PDE solve is needed. We read off the already-computed price values at adjacent grid nodes.
-
-**Truncation error:**
-
-By Taylor expansion:
-$$V_{j+1} = V_j + \Delta S \cdot V'_j + \frac{\Delta S^2}{2} V''_j + \frac{\Delta S^3}{6} V'''_j + O(\Delta S^4)$$
-$$V_{j-1} = V_j - \Delta S \cdot V'_j + \frac{\Delta S^2}{2} V''_j - \frac{\Delta S^3}{6} V'''_j + O(\Delta S^4)$$
-
-Subtracting:
-$$\frac{V_{j+1} - V_{j-1}}{2\,\Delta S} = V'_j + \frac{\Delta S^2}{6} V'''_j + O(\Delta S^4) = \Delta_j + O(\Delta S^2)$$
-
-So the **Delta approximation is O(dS^2) accurate** in smooth regions.
-
-### Numerical Gamma
-
-**Second central difference** (also `O(dS^2)`):
-
-$$\Gamma_j^h = \frac{V_{j+1} - 2V_j + V_{j-1}}{\Delta S^2}$$
-
-**Truncation error:**
-
-Adding the two Taylor expansions:
-$$\frac{V_{j+1} - 2V_j + V_{j-1}}{\Delta S^2} = V''_j + \frac{\Delta S^2}{12} V^{(4)}_j + O(\Delta S^4) = \Gamma_j + O(\Delta S^2)$$
-
-So the **Gamma approximation is also O(dS^2)**, but the divisor `dS^2` amplifies absolute errors compared to Delta (divided by `2*dS`).
-
----
-
-## 3. Accuracy Near the Strike Price
-
-### The Kink and Its Effect
-
-At expiry (`T=0`), the call payoff is `V(S,0) = max(S-K, 0)`, which satisfies:
-- `V'(S,0) = 1` for `S > K`
-- `V'(S,0) = 0` for `S < K`
-- `V''(S,0) = delta(S-K)` (Dirac delta — a singularity)
-
-For `T > 0`, the heat kernel (Black-Scholes fundamental solution) smooths this kink. The smoothed Gamma is:
-
-$$\Gamma(S, T) = \frac{n(d_1)}{S \sigma \sqrt{T}}$$
-
-This peaks sharply at `S = K` with peak value `~1/(sigma * sqrt(2*pi*T)) / K`. For `T=1, sigma=0.2, K=100`, the peak Gamma is `~0.0199`.
-
-### Why Greeks Are Less Accurate Near the Strike
-
-Even though the exact solution is smooth for `T > 0`, the **initial condition still carries memory of the kink**. The FDM price `V_j` has a discretisation error that is largest near `S = K`, because:
-
-1. The payoff kink means the initial data `V(S_j, 0) = max(S_j - K, 0)` is piecewise linear with a break between nodes.
-2. The second-difference operator `(V_{j+1} - 2V_j + V_{j-1}) / dS^2` amplifies errors in `V_j`, especially near the kink.
-3. The analytical `d^2V/dS^2` varies most rapidly near `S = K`, requiring finer resolution there.
-
-### Quantitative Comparison (from `numerical_greeks.py`)
-
-For `M=400, N=2000, T=1, K=100`:
-
-- **Away from strike** (`S = 60` or `S = 160`): Delta error ~`1e-5`, Gamma error ~`1e-4`
-- **Near strike** (`S ≈ K`): Delta error ~`2e-4` to `5e-4`, Gamma error ~`1e-3` to `5e-3`
-
-This is expected: Gamma errors are larger than Delta errors by approximately one order of `dS` (since Gamma involves dividing by `dS^2` vs `2*dS`).
-
----
-
-## 4. Improving Greek Accuracy
-
-### Option 1: Grid Refinement
-
-Doubling M (halving dS) reduces:
-- Delta error by a factor of ~4 (O(dS^2))
-- Gamma error by a factor of ~4 (O(dS^2))
-
-### Option 2: Non-Uniform Grid
-
-Concentrate grid nodes near the strike by using a transformation such as:
-
-$$S_j = K + \sinh\!\left(\xi_j \cdot \text{arcsinh}\!\left(\frac{S_{max} - K}{c}\right)\right) \cdot c$$
-
-This places more nodes near `S = K` where Gamma peaks, improving accuracy without increasing the total number of nodes.
-
-### Option 3: Bump-and-Reprice
-
-Compute Delta and Gamma by solving the PDE at `S+h` and `S-h` separately (external bumping) with a smaller `h` than the grid spacing. More computationally expensive but free from grid artefacts.
-
----
-
-## 5. Summary
-
-| Quantity | Formula | Accuracy |
-|:---|:---|:---:|
-| Delta | `(V_{j+1} - V_{j-1}) / (2*dS)` | `O(dS^2)` |
-| Gamma | `(V_{j+1} - 2*V_j + V_{j-1}) / dS^2` | `O(dS^2)` |
-| Near-strike Delta error | Larger due to high `d^2 Delta/dS^2` | Decreases as `M` increases |
-| Near-strike Gamma error | Largest near `S=K` (peak of Gamma) | Requires fine grid or clustering |
-
-Both CN and Fully Implicit produce the same Greek accuracy for the same spatial grid M, because both use the same O(dS^2) central-difference approximation in space.
+## Interpretation
+Greeks differentiate the discrete price profile and amplify local price errors, especially Gamma. Results must identify the maturity, solver, mesh, strike alignment and sampling location. ATM Gamma is the value at S=K; maximum Gamma is evaluated at S* above.

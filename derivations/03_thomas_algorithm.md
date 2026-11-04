@@ -69,17 +69,8 @@ For $n = 1000$ grid points, standard Gaussian elimination requires $\approx 6.7 
 
 ---
 
-## 5. Numerical Stability Condition
+## 5. Pivoting and conditioning
 
-The Thomas algorithm is numerically stable without pivoting if the tridiagonal matrix is **strictly diagonally dominant**:
+Thomas elimination without pivoting requires every modified pivot `b'_i` to be nonzero. Strict diagonal dominance (or suitable positive-definite/M-matrix structure under the relevant sign conditions) is a useful sufficient condition for nonsingularity and safe no-pivot elimination; it must be verified for the assembled matrix. In the centered Black-Scholes operator, the drift contribution can make an off-diagonal coefficient change sign on coarse or low-S nodes, so a blanket diagonal-dominance proof for all meshes is not warranted.
 
-$$|b_i| > |a_i| + |c_i|, \quad \forall i = 1, \dots, n$$
-
-In our Black-Scholes implicit scheme:
-- $b_i = 1 + \Delta \tau \left( \frac{\sigma^2 S_i^2}{\Delta S^2} + r \right)$
-- $|a_i| + |c_i| = \Delta \tau \frac{\sigma^2 S_i^2}{\Delta S^2}$ (when grid satisfies no-oscillation condition $\Delta S \le \frac{\sigma^2 S_i}{r}$)
-
-Thus:
-$$b_i - (|a_i| + |c_i|) = 1 + r \Delta \tau > 1 > 0$$
-
-The coefficient matrix is strictly diagonally dominant for all choices of $\Delta S$ and $\Delta \tau > 0$, guaranteeing unconditional numerical stability of the Thomas solver in our Black-Scholes FDM implementation.
+This linear algebra property is distinct from stability of Backward Euler or Crank-Nicolson as time integrators, and from conditioning and roundoff in the solve. The project solves the actual tridiagonal system using the Thomas recurrence; it makes no inference that the algorithm itself guarantees unconditional stability of the PDE discretisation.

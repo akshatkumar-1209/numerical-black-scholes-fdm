@@ -58,6 +58,6 @@ $$\text{rhs}[-1] \mathrel{+}= c_{M-1}^B V_M^n - c_{M-1}^A V_M^{n+1}$$
 - Spatial: $\mathcal{O}(\Delta S^2)$  
 - Temporal: $\mathcal{O}(\Delta\tau^2)$ (**second-order**)  
 - Overall: $\mathcal{O}(\Delta S^2 + \Delta\tau^2)$  
-- **Unconditionally stable** (LHS matrix A is M-matrix)
+- A-stable for the scalar diffusion test equation, but not L-stable; high-frequency modes are not strongly damped. The left-matrix solvability/diagonal properties depend on its coefficients and are separate from time-scheme stability.
 
 **Practical benefit:** at equal cost (same $M, N$), CN is far more accurate than the fully implicit scheme. Verified in `programs/crank_nicolson_solver.py`.

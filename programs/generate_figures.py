@@ -1,332 +1,84 @@
 """
-generate_figures.py
-===================
-Generates publication-quality figures for:
-1. Spatial convergence (log-log plot: Linf error vs dS, confirming O(dS^2))
-2. Temporal convergence (log-log plot: Linf error vs dt, confirming O(dt) for Implicit and O(dt^2) for CN)
-3. Numerical Greeks (Delta and Gamma profiles vs analytical, plus near-strike error zoom)
-4. Non-smooth payoff & CN oscillations: Gamma oscillations under standard CN vs Rannacher smoothing
+generate_figures.py -- all figures, drawn from the SAME study functions that
+produce the numbers in results/ (nothing is typed in by hand).
 
-Outputs saved to 'figures/' directory.
+  fig1_spatial_convergence.png      L-inf error vs dS (time error removed)
+  fig2_temporal_convergence.png     temporal error vs dt (same-grid reference)
+  fig3_numerical_greeks.png         Delta, Gamma profiles + error near K
+  fig4_cn_oscillations_rannacher.png  Gamma near K: CN vs Rannacher, coarse dt
+  fig5_greeks_mesh_convergence.png  Delta/Gamma error vs dS, T=1 and T=0.1
 """
-
-import os
+import os, sys
 import numpy as np
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from math import log, sqrt, exp, erf, pi
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import convergence_study as cs, numerical_greeks as ng, payoff_kink_cn_oscillation as pk
+from fdm_core import solve_fdm, fd_greeks, bs_delta, bs_gamma, node_index
 
-# Set style
-plt.style.use('seaborn-v0_8-whitegrid' if 'seaborn-v0_8-whitegrid' in plt.style.available else 'default')
-plt.rcParams['font.sans-serif'] = 'Arial'
-plt.rcParams['font.size'] = 11
-plt.rcParams['axes.labelsize'] = 12
-plt.rcParams['axes.titlesize'] = 13
-plt.rcParams['legend.fontsize'] = 10
-plt.rcParams['figure.titlesize'] = 14
+FIG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "figures")
+K, R, SIG, SMAX = 100.0, 0.05, 0.20, 400.0
+plt.rcParams.update({"font.size": 11, "axes.grid": True, "grid.alpha": 0.4})
 
-FIG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "figures")
-os.makedirs(FIG_DIR, exist_ok=True)
+def save(name):
+    plt.tight_layout(); plt.savefig(os.path.join(FIG, name), dpi=200); plt.close()
+    print("  saved", name)
 
-# ---------------------------------------------------------
-# Analytical Functions
-# ---------------------------------------------------------
-def _N(x):
-    return 0.5 * (1.0 + erf(x / sqrt(2.0)))
+def ref_line(ax, x, y0, p, label, style):
+    x = np.array(x, float); ax.loglog(x, y0 * (x / x[0]) ** p, style, lw=1.2, label=label)
 
-def _n(x):
-    return exp(-0.5 * x * x) / sqrt(2.0 * pi)
+def run():
+    os.makedirs(FIG, exist_ok=True)
+    # fig1
+    sp = [r for r in cs.spatial_study() if r["on_node"]]
+    dS = [r["dS"] for r in sp]
+    plt.figure(figsize=(7, 5))
+    plt.loglog(dS, [r["imp"][0] for r in sp], "o-", label="Fully implicit (time error removed)")
+    plt.loglog(dS, [r["cn"][0] for r in sp], "s--", label="Crank-Nicolson (N=2000)")
+    ref_line(plt.gca(), dS, sp[0]["cn"][0], 2, r"slope 2", "k:")
+    plt.gca().invert_xaxis(); plt.xlabel(r"$\Delta S$"); plt.ylabel(r"$L_\infty$ price error")
+    plt.title(r"Spatial convergence, $K$ a grid node: $O(\Delta S^2)$"); plt.legend(); save("fig1_spatial_convergence.png")
+    # fig2
+    tp = cs.temporal_study(200)
+    dt = [r["dt"] for r in tp]
+    plt.figure(figsize=(7, 5))
+    plt.loglog(dt, [r["imp"][0] for r in tp], "o-", label="Fully implicit")
+    plt.loglog(dt, [r["cn"][0] for r in tp], "s--", label="Crank-Nicolson")
+    plt.loglog(dt, [r["cn_total"] for r in tp], "x:", color="gray", label="CN error vs exact price (hits spatial floor)")
+    ref_line(plt.gca(), dt, tp[0]["imp"][0], 1, "slope 1", "b:"); ref_line(plt.gca(), dt, tp[0]["cn"][0], 2, "slope 2", "r:")
+    plt.xlabel(r"$\Delta\tau$"); plt.ylabel(r"$L_\infty$ error")
+    plt.title("Temporal convergence, M=200\n(error vs time-converged solution on the same grid)", fontsize=11); plt.legend(fontsize=9); save("fig2_temporal_convergence.png")
+    # fig3
+    M, N, T = 400, 2000, 1.0
+    S, V = solve_fdm(K, T, R, SIG, SMAX, M, N, "call", "cn"); d, g = fd_greeks(S, V)
+    de = np.array([bs_delta(s, K, T, R, SIG) for s in S]); ge = np.array([bs_gamma(s, K, T, R, SIG) for s in S])
+    m = (S > 50) & (S < 200)
+    fig, ax = plt.subplots(2, 2, figsize=(11, 7))
+    ax[0, 0].plot(S[m], de[m], "k-", label="analytical"); ax[0, 0].plot(S[m][::6], d[m][::6], "r.", label="FDM (CN)"); ax[0, 0].set_title("Delta"); ax[0, 0].legend()
+    ax[0, 1].plot(S[m], ge[m], "k-", label="analytical"); ax[0, 1].plot(S[m][::6], g[m][::6], "r.", label="FDM (CN)"); ax[0, 1].set_title("Gamma"); ax[0, 1].legend()
+    w = (S > 80) & (S < 120)
+    ax[1, 0].semilogy(S[w], np.abs(d - de)[w]); ax[1, 0].axvline(K, color="gray", ls=":"); ax[1, 0].set_title("|Delta error|, near K"); ax[1, 0].set_xlabel("S")
+    ax[1, 1].semilogy(S[w], np.abs(g - ge)[w]); ax[1, 1].axvline(K, color="gray", ls=":"); ax[1, 1].set_title("|Gamma error|, near K"); ax[1, 1].set_xlabel("S")
+    fig.suptitle("Numerical Greeks, T=1, M=400, N=2000"); save("fig3_numerical_greeks.png")
+    # fig4
+    M = 200; T = 1.0
+    Sg = np.linspace(0, SMAX, M + 1); gex = np.array([bs_gamma(s, K, T, R, SIG) for s in Sg]); w = (Sg > 70) & (Sg < 130)
+    fig, ax = plt.subplots(1, 2, figsize=(12, 4.8), sharey=True)
+    for a, Nn in zip(ax, (5, 10)):
+        for sch, st, lab in (("cn", "r-o", "Crank-Nicolson"), ("rannacher", "b-s", "Rannacher (2 BE + CN)")):
+            _, Vv = solve_fdm(K, T, R, SIG, SMAX, M, Nn, "call", sch); _, gg = fd_greeks(Sg, Vv)
+            a.plot(Sg[w], gg[w], st, ms=3, lw=1, label=lab)
+        a.plot(Sg[w], gex[w], "k-", lw=1.5, label="analytical"); a.axhline(0, color="gray", lw=0.6)
+        a.set_title(f"N={Nn}  (dt={T/Nn:g}), M=200"); a.set_xlabel("S"); a.legend(fontsize=8)
+    ax[0].set_ylabel("Gamma"); fig.suptitle("Gamma near the strike: CN oscillation and its removal"); save("fig4_cn_oscillations_rannacher.png")
+    # fig5
+    fig, ax = plt.subplots(1, 2, figsize=(11, 4.6))
+    for a, TT in zip(ax, (1.0, 0.1)):
+        rows = ng.refinement(TT); x = [r["dS"] for r in rows]
+        a.loglog(x, [r["dK"] for r in rows], "o-", label="Delta error at K"); a.loglog(x, [r["gK"] for r in rows], "s-", label="Gamma error at K")
+        ref_line(a, x, rows[0]["gK"], 2, "slope 2", "k:"); a.invert_xaxis(); a.set_xlabel(r"$\Delta S$"); a.set_title(f"T={TT}"); a.legend()
+    fig.suptitle("Mesh convergence of numerical Greeks at S=K (CN, N=2000)"); save("fig5_greeks_mesh_convergence.png")
 
-def bs_call(S, K, T, r, sigma):
-    if S <= 0 or T <= 0:
-        return max(S - K, 0.0)
-    d1 = (log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * sqrt(T))
-    d2 = d1 - sigma * sqrt(T)
-    return S * _N(d1) - K * exp(-r * T) * _N(d2)
-
-def bs_delta(S, K, T, r, sigma):
-    if S <= 0 or T <= 0:
-        return 0.0
-    d1 = (log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * sqrt(T))
-    return _N(d1)
-
-def bs_gamma(S, K, T, r, sigma):
-    if S <= 0 or T <= 0:
-        return 0.0
-    d1 = (log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * sqrt(T))
-    return _n(d1) / (S * sigma * sqrt(T))
-
-# ---------------------------------------------------------
-# Solvers
-# ---------------------------------------------------------
-def thomas(a, b, c, d):
-    n = len(b)
-    b, d = b.copy(), d.copy()
-    x = np.zeros(n)
-    for i in range(1, n):
-        m = a[i] / b[i - 1]
-        b[i] -= m * c[i - 1]
-        d[i] -= m * d[i - 1]
-    x[-1] = d[-1] / b[-1]
-    for i in range(n - 2, -1, -1):
-        x[i] = (d[i] - c[i] * x[i + 1]) / b[i]
-    return x
-
-def solve_implicit(K, T, r, sigma, Smax, M, N):
-    dS = Smax / M
-    dt = T / N
-    S = np.linspace(0, Smax, M + 1)
-    V = np.maximum(S - K, 0.0)
-    Sj = np.arange(1, M) * dS
-    al = 0.5 * sigma**2 * Sj**2 / dS**2 - 0.5 * r * Sj / dS
-    be = -sigma**2 * Sj**2 / dS**2 - r
-    ga = 0.5 * sigma**2 * Sj**2 / dS**2 + 0.5 * r * Sj / dS
-    a = -dt * al
-    b = 1.0 - dt * be
-    c = -dt * ga
-    for step in range(N):
-        tau = (step + 1) * dt
-        V0 = 0.0
-        VM = (Smax - K * exp(-r * tau))
-        rhs = V[1:M].copy()
-        rhs[0] -= a[0] * V0
-        rhs[-1] -= c[-1] * VM
-        V[0] = V0
-        V[1:M] = thomas(a, b, c, rhs)
-        V[M] = VM
-    return S, V
-
-def solve_cn(K, T, r, sigma, Smax, M, N):
-    dS = Smax / M
-    dt = T / N
-    S = np.linspace(0, Smax, M + 1)
-    V = np.maximum(S - K, 0.0)
-    Sj = np.arange(1, M) * dS
-    al = 0.5 * sigma**2 * Sj**2 / dS**2 - 0.5 * r * Sj / dS
-    be = -sigma**2 * Sj**2 / dS**2 - r
-    ga = 0.5 * sigma**2 * Sj**2 / dS**2 + 0.5 * r * Sj / dS
-    h = 0.5 * dt
-    aL, bL, cL = -h * al, 1.0 - h * be, -h * ga
-    aR, bR, cR = h * al, 1.0 + h * be, h * ga
-    for step in range(N):
-        tn = (step + 1) * dt
-        to = step * dt
-        V0n = 0.0; VMn = (Smax - K * exp(-r * tn))
-        V0o = 0.0; VMo = (Smax - K * exp(-r * to))
-        vi = V[1:M]
-        rhs = bR * vi
-        rhs[1:] += aR[1:] * vi[:-1]
-        rhs[:-1] += cR[:-1] * vi[1:]
-        rhs[0] += aR[0] * V0o - aL[0] * V0n
-        rhs[-1] += cR[-1] * VMo - cL[-1] * VMn
-        V[0] = V0n
-        V[1:M] = thomas(aL, bL, cL, rhs)
-        V[M] = VMn
-    return S, V
-
-def solve_rannacher(K, T, r, sigma, Smax, M, N, n_impl=2):
-    dS = Smax / M
-    dt = T / N
-    S = np.linspace(0, Smax, M + 1)
-    V = np.maximum(S - K, 0.0)
-    Sj = np.arange(1, M) * dS
-    al = 0.5 * sigma**2 * Sj**2 / dS**2 - 0.5 * r * Sj / dS
-    be = -sigma**2 * Sj**2 / dS**2 - r
-    ga = 0.5 * sigma**2 * Sj**2 / dS**2 + 0.5 * r * Sj / dS
-    h = 0.5 * dt
-    aL, bL, cL = -h * al, 1.0 - h * be, -h * ga
-    aR, bR, cR = h * al, 1.0 + h * be, h * ga
-    a_im, b_im, c_im = -dt * al, 1.0 - dt * be, -dt * ga
-    for step in range(N):
-        tn = (step + 1) * dt
-        to = step * dt
-        V0n = 0.0; VMn = (Smax - K * exp(-r * tn))
-        V0o = 0.0; VMo = (Smax - K * exp(-r * to))
-        if step < n_impl:
-            rhs = V[1:M].copy()
-            rhs[0] -= a_im[0] * V0n
-            rhs[-1] -= c_im[-1] * VMn
-            V[0] = V0n
-            V[1:M] = thomas(a_im, b_im, c_im, rhs)
-            V[M] = VMn
-        else:
-            vi = V[1:M]
-            rhs = bR * vi
-            rhs[1:] += aR[1:] * vi[:-1]
-            rhs[:-1] += cR[:-1] * vi[1:]
-            rhs[0] += aR[0] * V0o - aL[0] * V0n
-            rhs[-1] += cR[-1] * VMo - cL[-1] * VMn
-            V[0] = V0n
-            V[1:M] = thomas(aL, bL, cL, rhs)
-            V[M] = VMn
-    return S, V
-
-def max_error(S, V, K, T, r, sigma):
-    errs = [abs(V[j] - bs_call(S[j], K, T, r, sigma)) for j in range(1, len(S) - 1) if S[j] > 0]
-    return max(errs)
-
-# Standard parameters
-K = 100.0; T = 1.0; r = 0.05; sigma = 0.20; Smax = 400.0
-
-print("Generating Fig 1: Spatial Convergence...")
-# ---------------------------------------------------------
-# Figure 1: Spatial Convergence
-# ---------------------------------------------------------
-M_list = [25, 50, 100, 200, 400]
-N_fixed = 5000
-dS_vals = [Smax / m for m in M_list]
-err_imp_spatial = []
-err_cn_spatial = []
-
-for m in M_list:
-    Simp, Vimp = solve_implicit(K, T, r, sigma, Smax, m, N_fixed)
-    Scn, Vcn = solve_cn(K, T, r, sigma, Smax, m, N_fixed)
-    err_imp_spatial.append(max_error(Simp, Vimp, K, T, r, sigma))
-    err_cn_spatial.append(max_error(Scn, Vcn, K, T, r, sigma))
-
-plt.figure(figsize=(7, 5))
-plt.loglog(dS_vals, err_imp_spatial, 'o-', color='#1f77b4', lw=2, ms=6, label=r'Fully Implicit FDM ($N=5000$)')
-plt.loglog(dS_vals, err_cn_spatial, 's--', color='#d62728', lw=2, ms=6, label=r'Crank-Nicolson FDM ($N=5000$)')
-
-# Reference slope O(dS^2)
-ref_x = np.array([dS_vals[1], dS_vals[-1]])
-ref_y = err_cn_spatial[1] * (ref_x / ref_x[0])**2
-plt.loglog(ref_x, ref_y, 'k:', lw=1.5, label=r'Theoretical $\mathcal{O}(\Delta S^2)$ Slope')
-
-plt.xlabel(r'Spatial Step Size $\Delta S$ (log scale)')
-plt.ylabel(r'$L_\infty$ Error in Option Price (log scale)')
-plt.title(r'Spatial Convergence: $\mathcal{O}(\Delta S^2)$ Verification')
-plt.grid(True, which="both", ls="--", alpha=0.6)
-plt.legend()
-plt.tight_layout()
-fig1_path = os.path.join(FIG_DIR, "fig1_spatial_convergence.png")
-plt.savefig(fig1_path, dpi=300)
-plt.close()
-print(f"  Saved: {fig1_path}")
-
-print("Generating Fig 2: Temporal Convergence...")
-# ---------------------------------------------------------
-# Figure 2: Temporal Convergence
-# ---------------------------------------------------------
-N_list = [50, 100, 200, 400, 800]
-M_fixed = 800
-dt_vals = [T / n for n in N_list]
-err_imp_temp = []
-err_cn_temp = []
-
-for n in N_list:
-    Simp, Vimp = solve_implicit(K, T, r, sigma, Smax, M_fixed, n)
-    Scn, Vcn = solve_cn(K, T, r, sigma, Smax, M_fixed, n)
-    err_imp_temp.append(max_error(Simp, Vimp, K, T, r, sigma))
-    err_cn_temp.append(max_error(Scn, Vcn, K, T, r, sigma))
-
-plt.figure(figsize=(7, 5))
-plt.loglog(dt_vals, err_imp_temp, 'o-', color='#1f77b4', lw=2, ms=6, label=r'Fully Implicit: $\mathcal{O}(\Delta \tau)$')
-plt.loglog(dt_vals, err_cn_temp, 's--', color='#d62728', lw=2, ms=6, label=r'Crank-Nicolson: $\mathcal{O}(\Delta \tau^2)$')
-
-# Reference slopes
-ref_x = np.array([dt_vals[0], dt_vals[-1]])
-ref_y1 = err_imp_temp[0] * (ref_x / ref_x[0])**1.0
-ref_y2 = err_cn_temp[0] * (ref_x / ref_x[0])**2.0
-plt.loglog(ref_x, ref_y1, 'b:', lw=1.2, label=r'$\mathcal{O}(\Delta \tau)$ Reference')
-plt.loglog(ref_x, ref_y2, 'r:', lw=1.2, label=r'$\mathcal{O}(\Delta \tau^2)$ Reference')
-
-plt.xlabel(r'Time Step $\Delta \tau$ (log scale)')
-plt.ylabel(r'$L_\infty$ Error in Option Price (log scale)')
-plt.title(r'Temporal Convergence: $\mathcal{O}(\Delta \tau)$ vs $\mathcal{O}(\Delta \tau^2)$')
-plt.grid(True, which="both", ls="--", alpha=0.6)
-plt.legend()
-plt.tight_layout()
-fig2_path = os.path.join(FIG_DIR, "fig2_temporal_convergence.png")
-plt.savefig(fig2_path, dpi=300)
-plt.close()
-print(f"  Saved: {fig2_path}")
-
-print("Generating Fig 3: Numerical Greeks...")
-# ---------------------------------------------------------
-# Figure 3: Numerical Greeks
-# ---------------------------------------------------------
-M_g = 400; N_g = 2000
-dS_g = Smax / M_g
-S_g, V_cn_g = solve_cn(K, T, r, sigma, Smax, M_g, N_g)
-
-# Greek calculations
-delta_cn = np.zeros(M_g + 1)
-gamma_cn = np.zeros(M_g + 1)
-delta_ex = np.array([bs_delta(s, K, T, r, sigma) for s in S_g])
-gamma_ex = np.array([bs_gamma(s, K, T, r, sigma) for s in S_g])
-
-for j in range(1, M_g):
-    delta_cn[j] = (V_cn_g[j+1] - V_cn_g[j-1]) / (2.0 * dS_g)
-    gamma_cn[j] = (V_cn_g[j+1] - 2.0 * V_cn_g[j] + V_cn_g[j-1]) / (dS_g**2)
-delta_cn[0] = (V_cn_g[1] - V_cn_g[0]) / dS_g
-gamma_cn[0] = gamma_ex[0]
-delta_cn[-1] = (V_cn_g[-1] - V_cn_g[-2]) / dS_g
-gamma_cn[-1] = gamma_ex[-1]
-
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5))
-
-# Plot Delta
-mask = (S_g >= 40) & (S_g <= 180)
-ax1.plot(S_g[mask], delta_ex[mask], 'k-', lw=2.5, label='Analytical Delta')
-ax1.plot(S_g[mask], delta_cn[mask], 'r--', lw=1.8, label='Numerical FDM Delta')
-ax1.axvline(K, color='gray', ls=':', label=f'Strike K={K:.0f}')
-ax1.set_xlabel('Spot Price S')
-ax1.set_ylabel(r'Delta $\Delta = \partial V / \partial S$')
-ax1.set_title('Delta Profile Across Spot')
-ax1.legend()
-ax1.grid(True, ls='--', alpha=0.6)
-
-# Plot Gamma & Error
-ax2.plot(S_g[mask], gamma_ex[mask], 'k-', lw=2.5, label='Analytical Gamma')
-ax2.plot(S_g[mask], gamma_cn[mask], 'b--', lw=1.8, label='Numerical FDM Gamma')
-ax2.axvline(K, color='gray', ls=':', label=f'Strike K={K:.0f}')
-ax2.set_xlabel('Spot Price S')
-ax2.set_ylabel(r'Gamma $\Gamma = \partial^2 V / \partial S^2$')
-ax2.set_title('Gamma Profile Across Spot (Peak at Strike K)')
-ax2.legend()
-ax2.grid(True, ls='--', alpha=0.6)
-
-plt.tight_layout()
-fig3_path = os.path.join(FIG_DIR, "fig3_numerical_greeks.png")
-plt.savefig(fig3_path, dpi=300)
-plt.close()
-print(f"  Saved: {fig3_path}")
-
-print("Generating Fig 4: Crank-Nicolson Oscillations vs Rannacher Smoothing...")
-# ---------------------------------------------------------
-# Figure 4: Payoff Kink, CN Oscillations & Rannacher Fix
-# ---------------------------------------------------------
-M_osc = 150; N_coarse = 10
-dS_osc = Smax / M_osc
-
-S_osc, V_pure_cn = solve_cn(K, T, r, sigma, Smax, M_osc, N_coarse)
-_, V_ran = solve_rannacher(K, T, r, sigma, Smax, M_osc, N_coarse, n_impl=2)
-
-gamma_pure = np.zeros(M_osc + 1)
-gamma_ran = np.zeros(M_osc + 1)
-gamma_exact = np.array([bs_gamma(s, K, T, r, sigma) for s in S_osc])
-
-for j in range(1, M_osc):
-    gamma_pure[j] = (V_pure_cn[j+1] - 2.0 * V_pure_cn[j] + V_pure_cn[j-1]) / (dS_osc**2)
-    gamma_ran[j] = (V_ran[j+1] - 2.0 * V_ran[j] + V_ran[j-1]) / (dS_osc**2)
-
-mask_zoom = (S_osc >= 80) & (S_osc <= 120)
-
-plt.figure(figsize=(8, 5))
-plt.plot(S_osc[mask_zoom], gamma_exact[mask_zoom], 'k-', lw=2.5, label='Analytical Gamma (Exact Benchmark)')
-plt.plot(S_osc[mask_zoom], gamma_pure[mask_zoom], 'ro-', lw=1.8, ms=5, label='Standard Crank-Nicolson (Spurious Oscillations)')
-plt.plot(S_osc[mask_zoom], gamma_ran[mask_zoom], 'gs--', lw=2.0, ms=5, label='Rannacher Smoothing (2 Implicit Start-up Steps)')
-plt.axvline(K, color='gray', ls=':', label=f'Payoff Kink at Strike K={K:.0f}')
-
-plt.xlabel('Spot Price S')
-plt.ylabel(r'Gamma $\Gamma = \partial^2 V / \partial S^2$')
-plt.title(r'Treatment of Payoff Kink: Standard CN vs Rannacher Smoothing ($N=10$)')
-plt.legend()
-plt.grid(True, ls='--', alpha=0.6)
-plt.tight_layout()
-fig4_path = os.path.join(FIG_DIR, "fig4_cn_oscillations_rannacher.png")
-plt.savefig(fig4_path, dpi=300)
-plt.close()
-print(f"  Saved: {fig4_path}")
-
-print("All figures successfully created in figures/ directory!")
+if __name__ == "__main__":
+    run()

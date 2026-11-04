@@ -54,31 +54,41 @@ $$\frac{V(\tau + \Delta\tau) - V(\tau)}{\Delta\tau} = \frac{\partial V}{\partial
 
 The fully implicit method is **unconditionally stable** for all `dS > 0`, `dt > 0`. The LHS matrix `(I - dt * L^h)` is strictly diagonally dominant, with all eigenvalues lying in the left half-plane. The spectral radius of the amplification factor satisfies `|g(xi)| <= 1` for all wavenumbers `xi`.
 
-### Convergence Table (Observed, from program output)
 
-Spatial study (N=5000 fixed):
+### Observed spatial convergence (from `results/output_8_convergence_study.txt`, section B)
 
-| M | dS | L-inf Error | Ratio | Observed Order |
-|--:|---:|------------:|------:|---------------:|
-| 25 | 16.00 | ~3.7e-02 | — | — |
-| 50 | 8.00 | ~2.0e-02 | ~1.9 | ~0.9 |
-| 100 | 4.00 | ~4.8e-03 | ~4.1 | ~2.0 |
-| 200 | 2.00 | ~1.2e-03 | ~4.0 | ~2.0 |
-| 400 | 1.00 | ~3.0e-04 | ~4.0 | ~2.0 |
+Grids on which K is a node (M a multiple of 4).  Fully implicit (time error removed by Richardson extrapolation):
 
-> [!NOTE] The M=50 anomaly (ratio ~1.9 instead of ~4) occurs because for M=50 (dS=8), the strike K=100 lies between grid nodes. This is a grid-alignment effect, not a solver defect.
+| M | dS | L-inf error | order | L2 error | error at S=K | order at S=K |
+|--:|---:|---:|---:|---:|---:|---:|
+| 100 | 4.00 | 4.000e-02 | — | 2.068e-01 | 3.982e-02 | — |
+| 200 | 2.00 | 1.001e-02 | 2.00 | 5.157e-02 | 9.898e-03 | 2.01 |
+| 400 | 1.00 | 2.499e-03 | 2.00 | 1.288e-02 | 2.471e-03 | 2.00 |
+| 800 | 0.50 | 6.246e-04 | 2.00 | 3.221e-03 | 6.176e-04 | 2.00 |
 
-Temporal study (M=800 fixed):
+Crank-Nicolson (N = 2000):
 
-| N | dt | L-inf Error | Ratio | Observed Order |
-|--:|---:|------------:|------:|---------------:|
-| 50 | 0.02000 | ~1.2e-03 | — | — |
-| 100 | 0.01000 | ~6.1e-04 | ~2.0 | ~1.0 |
-| 200 | 0.00500 | ~3.1e-04 | ~2.0 | ~1.0 |
-| 400 | 0.00250 | ~1.5e-04 | ~2.0 | ~1.0 |
-| 800 | 0.00125 | ~7.8e-05 | ~2.0 | ~1.0 |
+| M | dS | L-inf error | order | L2 error | error at S=K | order at S=K |
+|--:|---:|---:|---:|---:|---:|---:|
+| 100 | 4.00 | 4.000e-02 | — | 2.068e-01 | 3.982e-02 | — |
+| 200 | 2.00 | 1.001e-02 | 2.00 | 5.157e-02 | 9.898e-03 | 2.01 |
+| 400 | 1.00 | 2.499e-03 | 2.00 | 1.288e-02 | 2.471e-03 | 2.00 |
+| 800 | 0.50 | 6.245e-04 | 2.00 | 3.220e-03 | 6.175e-04 | 2.00 |
 
-The temporal ratios approaching **2.0** confirm `O(dt)` first-order accuracy.
+Both schemes give p = 2.00.  (The pair M = 50 -> 100 is not a refinement within one alignment family -- K is not a node for M = 50 -- and is therefore excluded from the order estimate; see Derivation 8, section A.)
+
+### Observed temporal convergence, fully implicit (M = 200, reference: CN with N = 12800 on the same grid)
+
+| N | dt | temporal error (L-inf) | order | L2 |
+|--:|---:|---:|---:|---:|
+| 25 | 0.04000 | 4.287e-02 | — | 2.344e-01 |
+| 50 | 0.02000 | 2.147e-02 | 1.00 | 1.178e-01 |
+| 100 | 0.01000 | 1.074e-02 | 1.00 | 5.905e-02 |
+| 200 | 0.00500 | 5.372e-03 | 1.00 | 2.956e-02 |
+| 400 | 0.00250 | 2.686e-03 | 1.00 | 1.479e-02 |
+| 800 | 0.00125 | 1.343e-03 | 1.00 | 7.398e-03 |
+
+The temporal error halves when dt is halved: **O(dt)**, observed order 1.00.
 
 ---
 
@@ -106,52 +116,52 @@ $$\frac{V(\tau + \Delta\tau) - V(\tau)}{\Delta\tau} = \frac{\partial V}{\partial
 
 CN is also **unconditionally stable** (von Neumann analysis shows the amplification factor has modulus exactly 1 for the heat equation, i.e., it is non-dissipative).
 
-### Convergence Table (Observed, from program output)
+### Observed temporal convergence, Crank-Nicolson (M = 200, same reference)
 
-Spatial study (N=5000 fixed): Same as Implicit — spatial discretisation is identical, so O(dS^2) is confirmed with ratios ~4.0.
+| N | dt | temporal error (L-inf) | order | L2 |
+|--:|---:|---:|---:|---:|
+| 25 | 0.04000 | 4.035e-04 | — | 2.104e-03 |
+| 50 | 0.02000 | 1.010e-04 | 2.00 | 5.258e-04 |
+| 100 | 0.01000 | 2.524e-05 | 2.00 | 1.314e-04 |
+| 200 | 0.00500 | 6.310e-06 | 2.00 | 3.286e-05 |
+| 400 | 0.00250 | 1.576e-06 | 2.00 | 8.208e-06 |
+| 800 | 0.00125 | 3.929e-07 | 2.00 | 2.046e-06 |
 
-Temporal study (M=800 fixed):
-
-| N | dt | L-inf Error | Ratio | Observed Order |
-|--:|---:|------------:|------:|---------------:|
-| 50 | 0.02000 | ~4.0e-05 | — | — |
-| 100 | 0.01000 | ~1.0e-05 | ~4.0 | ~2.0 |
-| 200 | 0.00500 | ~2.5e-06 | ~4.0 | ~2.0 |
-| 400 | 0.00250 | ~6.2e-07 | ~4.0 | ~2.0 |
-| 800 | 0.00125 | ~1.6e-07 | ~3.9 | ~2.0 |
-
-The temporal ratios approaching **4.0** confirm `O(dt^2)` second-order accuracy.
+The temporal error drops by a factor 4 when dt is halved: **O(dt^2)**, observed order 2.00.  The same orders are obtained for M = 100 (results file, section C), i.e. they do not depend on the spatial grid.
 
 ---
 
 ## 4. Comparing the Two Methods
 
-### Error at Equal Computational Cost
+### How the two error sources are separated (method used in this project)
 
-For M=200 spatial points and N=500 time steps:
+Write the total error of a scheme on grid (dS, dt) as
 
-| Method | dS | dt | L-inf Error |
-|:---|---:|---:|------------:|
-| Fully Implicit | 2.0 | 0.002 | ~1.2e-3 |
-| Crank-Nicolson | 2.0 | 0.002 | ~9.9e-3... |
+    E(dS, dt) ~ C_S dS^2 + C_T dt^p ,    p = 1 (implicit),  p = 2 (CN).
 
-Wait — CN is *more* accurate at the same dt because of O(dt^2). Comparing at equal (M,N):
+* **Spatial error alone.**  Make the time error negligible and vary dS.
+  For CN take N = 2000 (time error ~1e-7).  For the implicit scheme the O(dt)
+  term is removed by Richardson extrapolation in time, V* = 2 V(N) - V(N/2),
+  which is O(dt^2) accurate.  Both schemes share the same spatial operator, so
+  they must give the same spatial errors; the tables below agree to 4 digits.
+* **Temporal error alone.**  Do NOT compare with the exact price: the spatial
+  term C_S dS^2 does not go away when only dt is refined and forms an error
+  *floor*.  Instead compare with a time-converged numerical solution on the
+  *same* spatial grid (CN with N_ref = 12800).  Both solutions contain the same
+  spatial error, which cancels exactly in the difference, leaving C_T dt^p.
+* **Why this matters.**  A study that fixes M=800 and compares with the exact
+  price shows the implicit order drifting from 1.0 to 0.76 and the CN error
+  stalling at ~6e-4 -- the spatial error of that grid (see the grey curve in
+  figures/fig2_temporal_convergence.png).  That is a flaw of the experiment, not
+  of the scheme.
 
-| Method | M | N | L-inf Error | CN advantage |
-|:---|--:|--:|------------:|-------------:|
-| Fully Implicit | 200 | 1000 | ~1.2e-3 | — |
-| Crank-Nicolson | 200 | 500 | ~9.9e-3 | 2x fewer steps, similar accuracy |
+### Equal cost, M = 200
 
-To achieve the same accuracy, CN needs far fewer time steps than Fully Implicit.
+Temporal errors at N = 100: implicit 1.07e-02, CN 2.52e-05 -- CN is about 425 times more accurate in time at the same dt, and CN with N = 25 (4.0e-04) beats implicit with N = 800 (1.3e-03).  Against the *exact* price both schemes saturate at the spatial error of the grid, so on a fixed grid the benefit of CN is that the same total error is reached with far fewer time steps.
 
-### Distinguishing Spatial vs Temporal Error
+### The 4x4 grid-refinement matrix
 
-The key strategy is to **isolate one error source at a time**:
-
-- **Isolate spatial error**: Fix N very large (N=5000) so temporal error is negligible. Vary M. The dominant error is then spatial.
-- **Isolate temporal error**: Fix M very large (M=800) so spatial error is negligible. Vary N. The dominant error is then temporal.
-
-Without this separation, the observed order is a mixture of both contributions and neither can be cleanly identified.
+`results/output_11_grid_refinement_matrix.txt` lists the L-inf error against the exact price for M, N in {50,100,200,400}.  Doubling M and N together mixes both error sources; for the implicit scheme the O(dt) term dominates, so the combined order is between 1 and 2 and is not a clean measure of either order.  Sections 2-3 above are the proper measurement.
 
 ---
 

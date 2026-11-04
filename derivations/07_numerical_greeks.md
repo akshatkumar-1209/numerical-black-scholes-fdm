@@ -87,7 +87,7 @@ For `T > 0`, the heat kernel (Black-Scholes fundamental solution) smooths this k
 
 $$\Gamma(S, T) = \frac{n(d_1)}{S \sigma \sqrt{T}}$$
 
-This peaks sharply at `S = K` with peak value `~1/(sigma * sqrt(2*pi*T)) / K`. For `T=1, sigma=0.2, K=100`, the peak Gamma is `~0.0199`.
+This peaks sharply at `S = K` with peak value `~1/(sigma * sqrt(2*pi*T)) / K`. For `T=1, sigma=0.2, K=100`, Gamma at `S = K` is `0.01876` (its maximum, `~0.0218`, lies near `S = 90`).
 
 ### Why Greeks Are Less Accurate Near the Strike
 
@@ -99,12 +99,22 @@ Even though the exact solution is smooth for `T > 0`, the **initial condition st
 
 ### Quantitative Comparison (from `numerical_greeks.py`)
 
-For `M=400, N=2000, T=1, K=100`:
+For `M = 400, N = 2000, T = 1, K = 100` (Crank-Nicolson): at `S = K` the Delta error is 6.2e-05 (exact value 0.6368) and the Gamma error is 7.2e-06 (exact value 0.01876), i.e. relative errors of about 1e-4 and 4e-4.  Away from the strike (`S = 60` or `160`) the errors are of comparable size (Delta ~1e-4 to 4e-6, Gamma ~1e-7 to 1e-5): at `T = 1` the kink has diffused over a width `sigma sqrt(T) K = 20`, so the strike region is well resolved by `dS = 1`.
 
-- **Away from strike** (`S = 60` or `S = 160`): Delta error ~`1e-5`, Gamma error ~`1e-4`
-- **Near strike** (`S ≈ K`): Delta error ~`2e-4` to `5e-4`, Gamma error ~`1e-3` to `5e-3`
+**Mesh refinement** (`numerical_greeks.py`, section B; errors at `S = K`, CN with N = 2000):
 
-This is expected: Gamma errors are larger than Delta errors by approximately one order of `dS` (since Gamma involves dividing by `dS^2` vs `2*dS`).
+| T | M | dS | Delta error | order | Gamma error | order |
+|--:|--:|---:|---:|---:|---:|---:|
+| 1 | 100 | 4.00 | 1.01e-03 | — | 1.18e-04 | — |
+| 1 | 200 | 2.00 | 2.50e-04 | 2.01 | 2.91e-05 | 2.02 |
+| 1 | 400 | 1.00 | 6.24e-05 | 2.00 | 7.25e-06 | 2.01 |
+| 1 | 800 | 0.50 | 1.56e-05 | 2.00 | 1.81e-06 | 2.00 |
+| 0.1 | 100 | 4.00 | 4.01e-03 | — | 4.50e-03 | — |
+| 0.1 | 200 | 2.00 | 8.84e-04 | 2.18 | 8.53e-04 | 2.40 |
+| 0.1 | 400 | 1.00 | 2.16e-04 | 2.03 | 2.04e-04 | 2.07 |
+| 0.1 | 800 | 0.50 | 5.38e-05 | 2.01 | 5.03e-05 | 2.02 |
+
+Both Greeks converge with order 2, as predicted by the Taylor analysis.  For `T = 0.1` the kink is only `sigma sqrt(T) K = 6.3` wide; with `dS = 4` the Gamma error at `K` is about 7% of its value (4.5e-3 vs 0.0627), and the asymptotic order is reached only for `dS <~ 2`.  The Greek error near the strike is therefore governed by `dS / (sigma sqrt(T) K)`.  Gamma is less accurate than Delta because it divides by `dS^2` rather than `2 dS`.
 
 ---
 

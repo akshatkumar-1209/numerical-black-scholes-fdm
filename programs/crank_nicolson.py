@@ -50,41 +50,42 @@ def crank_nicolson(K, T, r, sigma, Smax, M, N, opt):
         V[M] = VMn
     return S, V
 
-print("Crank-Nicolson FDM Solver  (press Ctrl+C to exit)")
-print("Tip: try Smax = 4*K, M = 100, N = 500\n")
+if __name__ == "__main__":
+    print("Crank-Nicolson FDM Solver  (press Ctrl+C to exit)")
+    print("Tip: try Smax = 4*K, M = 100, N = 500\n")
 
-while True:
-    try:
-        K     = float(input("Strike K           : "))
-        T     = float(input("Maturity T (years) : "))
-        r     = float(input("Risk-free rate r   : "))
-        sigma = float(input("Volatility sigma   : "))
-        Smax  = float(input("S_max              : "))
-        M     =   int(input("Grid points M      : "))
-        N_    =   int(input("Time steps N       : "))
-        opt   =       input("Option (call/put)  : ").strip().lower()
-        S_in  = float(input("Spot price S       : "))
-    except (ValueError, KeyboardInterrupt, EOFError):
-        break
+    while True:
+        try:
+            K     = float(input("Strike K           : "))
+            T     = float(input("Maturity T (years) : "))
+            r     = float(input("Risk-free rate r   : "))
+            sigma = float(input("Volatility sigma   : "))
+            Smax  = float(input("S_max              : "))
+            M     =   int(input("Grid points M      : "))
+            N_    =   int(input("Time steps N       : "))
+            opt   =       input("Option (call/put)  : ").strip().lower()
+            S_in  = float(input("Spot price S       : "))
+        except (ValueError, KeyboardInterrupt, EOFError):
+            break
 
-    S_grid, V = crank_nicolson(K, T, r, sigma, Smax, M, N_, opt)
-    j     = min(M, max(0, round(S_in / (Smax / M))))
-    S_act = S_grid[j]
-    v_fdm = V[j]
-    v_ex  = bs_price(S_act, K, T, r, sigma, opt)
+        S_grid, V = crank_nicolson(K, T, r, sigma, Smax, M, N_, opt)
+        j     = min(M, max(0, round(S_in / (Smax / M))))
+        S_act = S_grid[j]
+        v_fdm = V[j]
+        v_ex  = bs_price(S_act, K, T, r, sigma, opt)
 
-    print(f"\n  Grid node S  : {S_act:.4f}")
-    print(f"  CN price     : {v_fdm:.6f}")
-    print(f"  Exact price  : {v_ex:.6f}")
-    print(f"  Error        : {abs(v_fdm - v_ex):.4e}")
-    print(f"  dS = {Smax/M:.3f},  dt = {T/N_:.5f}\n")
+        print(f"\n  Grid node S  : {S_act:.4f}")
+        print(f"  CN price     : {v_fdm:.6f}")
+        print(f"  Exact price  : {v_ex:.6f}")
+        print(f"  Error        : {abs(v_fdm - v_ex):.4e}")
+        print(f"  dS = {Smax/M:.3f},  dt = {T/N_:.5f}\n")
 
-    if input("  Print full table? (y/n): ").strip().lower() == 'y':
-        step = max(1, M // 10)
-        print(f"\n  {'S':>8}  {'CN FDM':>10}  {'Exact':>10}  {'Error':>10}")
-        for jj in range(0, M + 1, step):
-            s  = S_grid[jj]
-            vf = V[jj]
-            ve = bs_price(s, K, T, r, sigma, opt) if s > 0 else (0 if opt == 'call' else K * exp(-r * T))
-            print(f"  {s:>8.2f}  {vf:>10.5f}  {ve:>10.5f}  {abs(vf - ve):>10.4e}")
-    print()
+        if input("  Print full table? (y/n): ").strip().lower() == 'y':
+            step = max(1, M // 10)
+            print(f"\n  {'S':>8}  {'CN FDM':>10}  {'Exact':>10}  {'Error':>10}")
+            for jj in range(0, M + 1, step):
+                s  = S_grid[jj]
+                vf = V[jj]
+                ve = bs_price(s, K, T, r, sigma, opt) if s > 0 else (0 if opt == 'call' else K * exp(-r * T))
+                print(f"  {s:>8.2f}  {vf:>10.5f}  {ve:>10.5f}  {abs(vf - ve):>10.4e}")
+        print()

@@ -32,17 +32,19 @@ For any `tau > 0`, `V` is infinitely smooth. But the FDM operates on a discrete 
 
 ## 2. Effect of the Kink on Spatial Convergence
 
-### When K is NOT a Grid Node
+The payoff `max(S-K,0)` is continuous but its derivative jumps at `S = K`, so the solution is not smooth there at small `tau` and the formal `O(dS^2)` truncation estimate (which needs bounded fourth derivatives) does not apply directly.  What does the experiment show?  `payoff_kink_cn_oscillation.py` (section A) refines the grid within two families -- `K` exactly on a node (`M` a multiple of 4) and `K` exactly half-way between two nodes (`M = 2 mod 4`) -- with the time error removed (CN, N = 2000):
 
-Suppose `K = 100`, `S_max = 400`, `M = 50`. Then `dS = 8` and the grid nodes near `K` are at `S = 96` and `S = 104`. The payoff jumps from `max(96-100,0) = 0` to `max(104-100,0) = 4` over one cell, but the true kink lies between nodes.
+| M (K on node) | dS | L-inf error | order | M (K midway) | dS | L-inf error | order |
+|--:|---:|---:|---:|--:|---:|---:|---:|
+| 24 | 16.67 | 8.248e-01 | — | 26 | 15.38 | 1.862e-01 | — |
+| 48 | 8.33 | 1.777e-01 | 2.21 | 50 | 8.00 | 5.536e-02 | 1.75 |
+| 96 | 4.17 | 4.337e-02 | 2.03 | 98 | 4.08 | 1.429e-02 | 1.95 |
+| 192 | 2.08 | 1.086e-02 | 2.00 | 194 | 2.06 | 3.700e-03 | 1.95 |
+| 384 | 1.04 | 2.712e-03 | 2.00 | 386 | 1.04 | 9.367e-04 | 1.98 |
 
-The interpolation error at the kink is `O(dS)` rather than `O(dS^2)`. This degrades the **effective spatial order** of convergence to approximately `O(dS)` instead of the formal `O(dS^2)`.
+**Finding.** Both families converge with order `p -> 2.0`.  The kink does *not* reduce the order on a uniform grid, for either alignment; it changes the error constant: at the same `dS` the half-way grid is about 3 times more accurate in `L_inf`.
 
-### When K IS a Grid Node
-
-If `M` is chosen so that `K / (S_max / M)` is an integer (i.e., `K = j * dS` for some integer `j`), the payoff kink falls exactly on a grid node. The piecewise-linear initial data is then represented exactly on the grid, and the full `O(dS^2)` convergence order is recovered.
-
-**Practical rule:** Always choose `M` such that `M * K / S_max` is an integer. For `K=100, S_max=400`, this means `M` must be a multiple of 4.
+**Consequence for order measurements.** An observed order is only meaningful when the grids being compared belong to the same family, i.e. the position of `K` relative to the nodes is preserved under refinement (`M -> 2M` does this).  The odd value `p = 0.47` for the step `M = 50 -> 100` in the Week 8 spatial study arises because `K` is half-way between nodes for `M = 50` but on a node for `M = 100`.
 
 ---
 
@@ -66,19 +68,20 @@ The oscillations are most visible when:
 - `T` is small (the kink has less time to be smoothed by diffusion)
 - Near the money (`S ≈ K`)
 
-### Quantitative Example (from `payoff_kink_cn_oscillation.py`)
+### Quantitative Example (from `payoff_kink_cn_oscillation.py`, section B)
 
-For `M=200, K=100, T=1`:
+`M = 200` (`dS = 2`), `T = 1`.  `lambda = dt sigma^2 K^2 / dS^2` is the time step measured in units of the grid.  Gamma window: `K +/- 5` nodes; the exact Gamma is positive everywhere (`~0.019` at `K`).
 
-| N (steps) | dt | Gamma at K (analytical: ~0.0199) | Oscillation size |
-|--:|---:|---:|---:|
-| 5 | 0.200 | Large oscillation | ~O(1) |
-| 10 | 0.100 | Moderate oscillation | ~O(0.1) |
-| 20 | 0.050 | Small oscillation | ~O(0.01) |
-| 50 | 0.020 | Very small | ~O(0.001) |
-| 100 | 0.010 | Negligible | ~O(1e-4) |
+| N | dt | lambda | CN: max Gamma error | CN: min Gamma | CN: price error |
+|--:|---:|---:|---:|---:|---:|
+| 3 | 0.3333 | 33.3 | 2.74e-01 | -0.2550 | 5.62e-01 |
+| 5 | 0.2000 | 20.0 | 1.58e-01 | -0.1394 | 2.39e-01 |
+| 10 | 0.1000 | 10.0 | 2.24e-02 | 0.0009 | 3.39e-02 |
+| 20 | 0.0500 | 5.0 | 4.93e-05 | 0.0129 | 9.45e-03 |
+| 50 | 0.0200 | 2.0 | 3.01e-05 | 0.0129 | 9.91e-03 |
+| 200 | 0.0050 | 0.5 | 3.13e-05 | 0.0129 | 1.00e-02 |
 
-The oscillations decay as `N` increases (smaller `dt`), because smaller time steps allow less amplification per step and the kernel smooths the kink more.
+For `lambda >~ 10` (`N <= 10`) CN produces a **negative Gamma** (N = 3, 5) or a badly distorted one (N = 10); for `lambda <~ 5` the Gamma error equals the ordinary spatial error and there is no oscillation.  See `figures/fig4_cn_oscillations_rannacher.png`.
 
 ---
 
@@ -106,35 +109,45 @@ After two implicit steps, the discontinuous components of the initial data are s
 
 ### Accuracy Preservation
 
-The first two BE steps introduce an extra temporal error of order `O(dt)` in those steps. However, since only two steps out of N total are affected:
+Each backward-Euler step has a local truncation error `O(dt^2)`; two such steps therefore add a contribution of order `dt^2` to the global error, which is the same order as the global error of CN, but with a larger constant.  Rannacher time stepping thus keeps second-order accuracy but is *not free*: in the intermediate range it can be slightly less accurate than plain CN (see the table).
 
-$$\text{Total extra error} \sim \frac{2}{N} \cdot O(dt) = O\!\left(\frac{dt}{N}\right) = O\!\left(\frac{T}{N^2}\right)$$
+### Quantitative Results (from `payoff_kink_cn_oscillation.py`, sections B and C)
 
-For reasonable `N`, this is negligible compared to the `O(dt^2)` error of CN.
+`M = 200`.  Price error = `L_inf` error against the exact price; Gamma error as above.
 
-### Quantitative Results (from `payoff_kink_cn_oscillation.py`)
+| T | N | CN price err | Rannacher price err | CN Gamma err | Rannacher Gamma err | CN Gamma min |
+|--:|--:|---:|---:|---:|---:|---:|
+| 1.0 | 3 | 5.62e-01 | 1.96e-01 | 2.74e-01 | 1.63e-03 | -0.2550 |
+| 1.0 | 5 | 2.39e-01 | 7.89e-02 | 1.58e-01 | 6.55e-04 | -0.1394 |
+| 1.0 | 10 | 3.39e-02 | 2.76e-02 | 2.24e-02 | 2.64e-04 | 0.0009 |
+| 1.0 | 20 | 9.45e-03 | 1.44e-02 | 4.93e-05 | 6.09e-05 | 0.0129 |
+| 1.0 | 50 | 9.91e-03 | 1.07e-02 | 3.01e-05 | 3.62e-05 | 0.0129 |
+| 1.0 | 200 | 1.00e-02 | 1.01e-02 | 3.13e-05 | 3.17e-05 | 0.0129 |
+| 0.1 | 3 | 4.45e-02 | 8.44e-02 | 2.58e-02 | 5.48e-03 | 0.0159 |
+| 0.1 | 5 | 2.84e-02 | 5.27e-02 | 7.42e-04 | 2.00e-03 | 0.0153 |
+| 0.1 | 10 | 3.13e-02 | 3.75e-02 | 7.45e-04 | 1.21e-03 | 0.0152 |
+| 0.1 | 20 | 3.19e-02 | 3.35e-02 | 8.26e-04 | 9.46e-04 | 0.0152 |
+| 0.1 | 50 | 3.21e-02 | 3.24e-02 | 8.49e-04 | 8.69e-04 | 0.0152 |
+| 0.1 | 200 | 3.21e-02 | 3.22e-02 | 8.53e-04 | 8.54e-04 | 0.0152 |
 
-For `M=200`:
+Observations:
 
-| N | Standard CN L-inf | Rannacher L-inf | CN Gamma Osc | Rannacher Gamma Osc |
-|--:|---:|---:|---:|---:|
-| 5 | large | similar | O(1) | O(0.01) |
-| 10 | moderate | similar | O(0.1) | O(0.001) |
-| 20 | small | similar | O(0.01) | O(1e-4) |
-| 50 | very small | very small | O(1e-3) | O(1e-5) |
+1. `T = 1`, `N = 3, 5, 10`: Rannacher removes the oscillation (Gamma stays positive); the Gamma error drops by a factor of about 170, 240 and 85, and the price error also drops.
+2. `T = 1`, `N = 20, 50`: no oscillation for either scheme; Rannacher's price error is slightly *larger* (1.4e-2 vs 9.4e-3 at N = 20).  For `N >= 200` the two coincide.
+3. `T = 0.1`: with these step sizes CN does not oscillate and Rannacher gives no benefit; for `N <= 20` it increases the price error.  Here the dominant error is the spatial error (grid `dS = 2` against a kink of width `sigma sqrt(T) K = 6.3`).
 
-The price error (L-inf) is virtually unchanged, while the Gamma oscillation is **reduced by 1-2 orders of magnitude**.
+So Rannacher start-up is a remedy for **large `dt` relative to the grid** (`lambda` large), not a universal improvement.
 
 ---
 
-## 5. Grid Alignment and Rannacher: Combined Recommendations
+## 5. Practical Recommendations
 
-The two fixes are complementary and should both be applied in practice:
-
-| Issue | Fix | Effect |
+| Situation | Recommendation | Evidence |
 |:---|:---|:---|
-| K not on grid → O(dS) spatial order | Align grid: choose M so K = j*dS | Restores O(dS^2) |
-| CN oscillations near kink | Rannacher: 2 BE start-up steps | Suppresses Gamma oscillation by 100x |
+| Measuring convergence orders | Compare only grids of the same alignment family (M -> 2M) | Section 2 |
+| Large `dt` relative to grid (`lambda >~ 5-10`) with Greeks needed | Use Rannacher (2 BE start-up steps) | Gamma error reduced 85-240x |
+| Small `dt` (`lambda <~ 2`) | Plain CN is sufficient | Rannacher adds no benefit, slightly more price error |
+| Short maturity, Greeks near `K` | Refine `dS` (or cluster nodes near `K`); `dS` must be small compared with `sigma sqrt(T) K` | `output_9`, section B, T = 0.1 |
 
 ---
 
@@ -146,7 +159,7 @@ The two fixes are complementary and should both be applied in practice:
 | Crank-Nicolson (standard) | None | Yes (coarse dt) | O(dS^2, dt^2) |
 | Crank-Nicolson (Rannacher) | First 2 steps only | Strongly suppressed | O(dS^2, dt^2) |
 
-The **Rannacher scheme** is the industry standard for option pricing with non-smooth payoffs. It combines the smoothing power of Backward Euler in the first steps with the accuracy of Crank-Nicolson thereafter.
+The **Rannacher scheme** is a standard remedy for option pricing with non-smooth payoffs when the time step is large; It combines the smoothing power of Backward Euler in the first steps with the accuracy of Crank-Nicolson thereafter.
 
 ---
 

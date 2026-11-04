@@ -1,144 +1,157 @@
-========================================================================
-  NUMERICAL BLACK-SCHOLES FDM — WEEKS 7 & 8
-  Systematic Verification & Convergence Analysis
-========================================================================
-  Parameters: K=100.0, T=1.0, r=0.05, sigma=0.2, Smax=400.0
-  Analytical call at S=K=100.0: 10.45058357
+==============================================================================
+  NUMERICAL BLACK-SCHOLES FDM -- WEEKS 7 & 8
+  Systematic verification and convergence analysis
+==============================================================================
+  K=100.0, T=1.0, r=0.05, sigma=0.2, Smax=400.0
+  Analytical call at S=K: 10.45058357   put: 5.57352602
+  Errors are L-inf (max over interior nodes) unless stated; L2 is the
+  discrete norm sqrt(sum e_j^2 dS).  Observed order p = log2(E_h / E_h/2).
 
-========================================================================
-  WEEK 7 — PRICE COMPARISON TABLES (FDM vs Analytical)
-========================================================================
+==============================================================================
+  A. PRICE TABLES  (FDM vs analytical)
+==============================================================================
 
-  Solver : Fully Implicit (M=200, N=1000)
-  dS=2.00,  dt=0.00100
-
-         S     FDM Price   Exact Price      |Error|   Rel Err %
-  ------------------------------------------------------------
-      60.0      0.056122      0.054437   1.6855e-03      3.0962
-      70.0      0.443163      0.441448   1.7145e-03      0.3884
-      80.0      1.856354      1.859420   3.0660e-03      0.1649
-      90.0      5.082101      5.091222   9.1208e-03      0.1791
-     100.0     10.439632     10.450584   1.0951e-02      0.1048
-     110.0     17.654510     17.662954   8.4440e-03      0.0478
-     120.0     26.164336     26.169044   4.7084e-03      0.0180
-     140.0     45.110114     45.110610   4.9548e-04      0.0011
-     160.0     64.913129     64.913023   1.0585e-04      0.0002
-     200.0    104.877635    104.877724   8.9688e-05      0.0001
-
-  [Put option, same grid]
-         S     FDM Price   Exact Price      |Error|
+  Fully implicit, call, M=200, N=1000  (dS=2, dt=0.001)
+        S    FDM price   Exact price      |Error|
   --------------------------------------------------
-      60.0     35.179184     35.177379   1.8044e-03
-      80.0     16.979415     16.982362   2.9471e-03
-     100.0      5.562694      5.573526   1.0832e-02
-     120.0      1.287397      1.291986   4.5895e-03
-     160.0      0.036191      0.035966   2.2475e-04
+     60.0     0.056122     0.054437   1.6855e-03
+     70.0     0.443163     0.441448   1.7145e-03
+     80.0     1.856354     1.859420   3.0660e-03
+     90.0     5.082101     5.091222   9.1208e-03
+    100.0    10.439632    10.450584   1.0951e-02
+    110.0    17.654510    17.662954   8.4440e-03
+    120.0    26.164336    26.169044   4.7084e-03
+    140.0    45.110114    45.110610   4.9548e-04
+    160.0    64.913129    64.913023   1.0585e-04
+    200.0   104.877635   104.877724   8.9688e-05
 
-  Solver : Crank-Nicolson (M=200, N=500)
-  dS=2.00,  dt=0.00200
-
-         S     FDM Price   Exact Price      |Error|   Rel Err %
-  ------------------------------------------------------------
-      60.0      0.055770      0.054437   1.3333e-03      2.4492
-      70.0      0.442414      0.441448   9.6573e-04      0.2188
-      80.0      1.855919      1.859420   3.5006e-03      0.1883
-      90.0      5.082591      5.091222   8.6309e-03      0.1695
-     100.0     10.440686     10.450584   9.8973e-03      0.0947
-     110.0     17.655424     17.662954   7.5300e-03      0.0426
-     120.0     26.164798     26.169044   4.2461e-03      0.0162
-     140.0     45.110062     45.110610   5.4804e-04      0.0012
-     160.0     64.913111     64.913023   8.7214e-05      0.0001
-     200.0    104.877741    104.877724   1.6478e-05      0.0000
-
-  [Put option, same grid]
-         S     FDM Price   Exact Price      |Error|
+  Fully implicit, put, M=200, N=1000  (dS=2, dt=0.001)
+        S    FDM price   Exact price      |Error|
   --------------------------------------------------
-      60.0     35.178712     35.177379   1.3333e-03
-      80.0     16.978861     16.982362   3.5006e-03
-     100.0      5.563629      5.573526   9.8973e-03
-     120.0      1.287740      1.291986   4.2461e-03
-     160.0      0.036053      0.035966   8.7210e-05
+     60.0    35.179184    35.177379   1.8044e-03
+     70.0    25.566224    25.564391   1.8334e-03
+     80.0    16.979415    16.982362   2.9471e-03
+     90.0    10.205163    10.214165   9.0019e-03
+    100.0     5.562694     5.573526   1.0832e-02
+    110.0     2.777571     2.785896   8.3251e-03
+    120.0     1.287397     1.291986   4.5895e-03
+    140.0     0.233176     0.233552   3.7658e-04
+    160.0     0.036191     0.035966   2.2475e-04
+    200.0     0.000696     0.000667   2.9198e-05
 
-========================================================================
-  WEEK 8 — CONVERGENCE ANALYSIS
-========================================================================
+  Crank-Nicolson, call, M=200, N=500  (dS=2, dt=0.002)
+        S    FDM price   Exact price      |Error|
+  --------------------------------------------------
+     60.0     0.055770     0.054437   1.3333e-03
+     70.0     0.442414     0.441448   9.6573e-04
+     80.0     1.855919     1.859420   3.5006e-03
+     90.0     5.082591     5.091222   8.6309e-03
+    100.0    10.440686    10.450584   9.8973e-03
+    110.0    17.655424    17.662954   7.5300e-03
+    120.0    26.164798    26.169044   4.2461e-03
+    140.0    45.110062    45.110610   5.4804e-04
+    160.0    64.913111    64.913023   8.7214e-05
+    200.0   104.877741   104.877724   1.6478e-05
 
-  [8a] SPATIAL CONVERGENCE STUDY (N=5000 fixed, vary M)
-       Large N ensures temporal error is negligible.
-       Expected: O(dS^2) -> error ratios ~4.0
+  Crank-Nicolson, put, M=200, N=500  (dS=2, dt=0.002)
+        S    FDM price   Exact price      |Error|
+  --------------------------------------------------
+     60.0    35.178712    35.177379   1.3333e-03
+     70.0    25.565356    25.564391   9.6573e-04
+     80.0    16.978861    16.982362   3.5006e-03
+     90.0    10.205534    10.214165   8.6310e-03
+    100.0     5.563629     5.573526   9.8973e-03
+    110.0     2.778366     2.785896   7.5300e-03
+    120.0     1.287740     1.291986   4.2461e-03
+    140.0     0.233004     0.233552   5.4804e-04
+    160.0     0.036053     0.035966   8.7210e-05
+    200.0     0.000683     0.000667   1.6474e-05
 
-  --- Fully Implicit ---
-       M        dS    L-inf Error     Ratio    Obs. Order
-  --------------------------------------------------------
-      25     16.00    2.48162e-01       nan           nan
-      50      8.00    5.54989e-02      4.47        -2.161  ← K not on grid
-     100      4.00    4.01874e-02      1.38        -0.466
-     200      2.00    1.02085e-02      3.94        -1.977
-     400      1.00    2.69818e-03      3.78        -1.920
+==============================================================================
+  B. SPATIAL CONVERGENCE (time error removed; see header)
+==============================================================================
+  K is a grid node only when M is a multiple of 4 (dS = 400/M divides 100).
 
-  --- Crank-Nicolson ---
-       M        dS    L-inf Error     Ratio    Obs. Order
-  --------------------------------------------------------
-      25     16.00    2.47967e-01       nan           nan
-      50      8.00    5.53552e-02      4.48        -2.163  ← K not on grid
-     100      4.00    4.00021e-02      1.38        -0.469
-     200      2.00    1.00084e-02      4.00        -1.999
-     400      1.00    2.49862e-03      4.01        -2.002
+  --- Crank-Nicolson (N=2000) ---
+      M      dS  K node?     Linf err  order       L2 err  order    err at S=K  order
+  --------------------------------------------------------------------------------------
+     25   16.00     NO   2.4797e-01      -  1.1936e+00      -           -      -
+     50    8.00     NO   5.5355e-02   2.16  2.6474e-01   2.17           -      -
+    100    4.00     yes  4.0002e-02   0.47  2.0676e-01   0.36  3.9817e-02      -
+    200    2.00     yes  1.0008e-02   2.00  5.1565e-02   2.00  9.8982e-03   2.01
+    400    1.00     yes  2.4986e-03   2.00  1.2884e-02   2.00  2.4711e-03   2.00
+    800    0.50     yes  6.2447e-04   2.00  3.2203e-03   2.00  6.1752e-04   2.00
 
-  [8b] TEMPORAL CONVERGENCE STUDY (M=800 fixed, vary N)
-       M=800 → dS=0.5 → spatial floor ≈ 3e-5 (well below temporal errors at low N).
-       Expected: Implicit O(dt^1) → ratios ≈ 2.0
-                 CN       O(dt^2) → ratios ≈ 4.0
+  --- Fully implicit (Richardson in time, N=2000/1000) ---
+      M      dS  K node?     Linf err  order       L2 err  order    err at S=K  order
+  --------------------------------------------------------------------------------------
+     25   16.00     NO   2.4797e-01      -  1.1936e+00      -           -      -
+     50    8.00     NO   5.5355e-02   2.16  2.6474e-01   2.17           -      -
+    100    4.00     yes  4.0002e-02   0.47  2.0676e-01   0.36  3.9817e-02      -
+    200    2.00     yes  1.0008e-02   2.00  5.1566e-02   2.00  9.8983e-03   2.01
+    400    1.00     yes  2.4987e-03   2.00  1.2884e-02   2.00  2.4712e-03   2.00
+    800    0.50     yes  6.2456e-04   2.00  3.2210e-03   2.00  6.1761e-04   2.00
 
-  --- Fully Implicit  [expected O(dt^1)] ---
-       N          dt    L-inf Error     Ratio    Obs. Order
-  ----------------------------------------------------------
-      50     0.02000    2.20106e-02       nan           nan
-     100     0.01000    1.13109e-02      1.95        -0.960
-     200     0.00500    5.95602e-03      1.90        -0.925
-     400     0.00250    3.27905e-03      1.82        -0.861
-     800     0.00125    1.94176e-03      1.69        -0.756
+  Reading the table: p = 2.00 holds for every pair of grids in which K is a node
+  (M=100 -> 200 -> 400 -> 800).  The pair M=50 -> 100 gives a meaningless 0.47,
+  because K is NOT a node at M=50 (K lies half-way between nodes 96 and 104),
+  so the kink is represented differently on the two grids.  Practical rule:
+  choose M so that K is a grid node before measuring orders.
 
-  --- Crank-Nicolson  [expected O(dt^2)] ---
-       N          dt    L-inf Error     Ratio    Obs. Order
-  ----------------------------------------------------------
-      50     0.02000    2.26789e-03       nan           nan
-     100     0.01000    6.01871e-04      3.77        -1.914
-     200     0.00500    6.18845e-04      0.97         0.040
-     400     0.00250    6.23105e-04      0.99         0.010
-     800     0.00125    6.24170e-04      1.00         0.002
+==============================================================================
+  C. TEMPORAL CONVERGENCE, M=100  (error vs time-converged CN solution, same grid)
+==============================================================================
+      N         dt   Implicit Linf  order   Implicit L2  |    CN Linf  order       CN L2  |  CN total err vs exact
+  --------------------------------------------------------------------------------------------------------
+     25    0.04000    4.2952e-02      -  2.3516e-01  |  4.0750e-04      -  2.1198e-03  |   3.9666e-02
+     50    0.02000    2.1513e-02   1.00  1.1819e-01  |  1.0192e-04   2.00  5.2988e-04  |   3.9918e-02
+    100    0.01000    1.0766e-02   1.00  5.9246e-02  |  2.5481e-05   2.00  1.3246e-04  |   3.9981e-02
+    200    0.00500    5.3852e-03   1.00  2.9662e-02  |  6.3692e-06   2.00  3.3109e-05  |   3.9997e-02
+    400    0.00250    2.6932e-03   1.00  1.4840e-02  |  1.5911e-06   2.00  8.2711e-06  |   4.0001e-02
+    800    0.00125    1.3467e-03   1.00  7.4226e-03  |  3.9662e-07   2.00  2.0617e-06  |   4.0002e-02
 
-  [8c] INTERPRETATION
-  --------------------------------------------------------------------
+==============================================================================
+  C. TEMPORAL CONVERGENCE, M=200  (error vs time-converged CN solution, same grid)
+==============================================================================
+      N         dt   Implicit Linf  order   Implicit L2  |    CN Linf  order       CN L2  |  CN total err vs exact
+  --------------------------------------------------------------------------------------------------------
+     25    0.04000    4.2873e-02      -  2.3439e-01  |  4.0346e-04      -  2.1036e-03  |   9.6337e-03
+     50    0.02000    2.1465e-02   1.00  1.1780e-01  |  1.0097e-04   2.00  5.2583e-04  |   9.9147e-03
+    100    0.01000    1.0740e-02   1.00  5.9053e-02  |  2.5244e-05   2.00  1.3145e-04  |   9.9850e-03
+    200    0.00500    5.3716e-03   1.00  2.9565e-02  |  6.3099e-06   2.00  3.2855e-05  |   1.0003e-02
+    400    0.00250    2.6862e-03   1.00  1.4792e-02  |  1.5763e-06   2.00  8.2078e-06  |   1.0007e-02
+    800    0.00125    1.3432e-03   1.00  7.3984e-03  |  3.9292e-07   2.00  2.0459e-06  |   1.0008e-02
 
-  Spatial Order (both methods):
-    Both Fully Implicit and Crank-Nicolson use central differences in S,
-    giving O(dS^2) spatial truncation error.  Halving dS (M→2M) should
-    reduce the error by a factor of ~4.  The tables confirm ratios of
-    approximately 4.0 once K lies on a grid node.  The M=50 anomaly
-    (dS=8, K=100 lies between nodes) causes the ratio to appear irregular
-    — this is a grid-alignment effect, not a solver defect.
+  The last column is the error against the EXACT price.  For CN it stops
+  decreasing once the temporal error drops below the spatial error of the
+  grid (about 6e-4 at M=200 ... see section B).  Comparing against the exact
+  price therefore hides the O(dt^2) behaviour; comparing against a
+  time-converged solution on the same grid shows it cleanly.
 
-  Temporal Order:
-    Fully Implicit uses Backward Euler (theta=1), giving O(dt) temporal
-    accuracy.  Halving N (dt→dt/2) reduces the error by a factor of ~2,
-    confirming first-order convergence in time.
+==============================================================================
+  D. 4x4 REFINEMENT MATRIX (L-inf error vs exact price)
+==============================================================================
 
-    Crank-Nicolson uses the trapezoid rule (theta=1/2), giving O(dt^2)
-    temporal accuracy.  Halving N reduces the error by a factor of ~4,
-    confirming second-order convergence in time.
+--- FULLY IMPLICIT (Backward Euler) ---
+   M \ N |         N=50 |        N=100 |        N=200 |        N=400
+------------------------------------------------------------------
+    M=50 |   6.9554e-02 |   6.2497e-02 |   5.8937e-02 |   5.7149e-02
+   M=100 |   6.1092e-02 |   5.0460e-02 |   4.5139e-02 |   4.2479e-02
+   M=200 |   3.1100e-02 |   2.0422e-02 |   1.5162e-02 |   1.2530e-02
+   M=400 |   2.3817e-02 |   1.3118e-02 |   7.7650e-03 |   5.1043e-03
 
-  Stability:
-    Both methods are unconditionally stable (no CFL restriction).
-    The tridiagonal system arising from the backward-in-time implicit
-    step has a strictly diagonally dominant matrix, guaranteeing stability
-    for any choice of dS and dt.
+--- CRANK-NICOLSON (theta = 1/2) ---
+   M \ N |         N=50 |        N=100 |        N=200 |        N=400
+------------------------------------------------------------------
+    M=50 |   5.5300e-02 |   5.5341e-02 |   5.5352e-02 |   5.5354e-02
+   M=100 |   3.9918e-02 |   3.9981e-02 |   3.9997e-02 |   4.0001e-02
+   M=200 |   9.9147e-03 |   9.9850e-03 |   1.0003e-02 |   1.0007e-02
+   M=400 |   2.4082e-03 |   2.4753e-03 |   2.4928e-03 |   2.4972e-03
 
-  Practical recommendation:
-    For equivalent computational cost (same M*N), Crank-Nicolson achieves
-    significantly smaller errors than the Fully Implicit method due to its
-    superior O(dt^2) temporal accuracy.
-  
-========================================================================
+  Diagonal (M=N doubled together) is a *combined* refinement: the implicit
+  error is dominated by the O(dt) term, so the combined order is between 1
+  and 2 and is NOT a clean measure of either order.  Use sections B and C.
+
+==============================================================================
   CONVERGENCE STUDY COMPLETE
-========================================================================
+==============================================================================

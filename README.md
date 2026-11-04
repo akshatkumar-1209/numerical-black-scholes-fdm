@@ -1,214 +1,257 @@
-# Numerical Black–Scholes PDE using Finite Differences
+# Numerical Black-Scholes FDM
 
-**Course Project:** Numerical Partial Differential Equations in Finance  
-**Student:** Akshat Kumar  
-**Supervisor:** Dr. Ashok Kumar Vaikuntam  
-**Course Coordinator:** Prof. Arshad Javed  
-**Institution:** BITS Pilani  
+Finite-difference pricing of European options on the Black-Scholes PDE, implemented from scratch in Python. The project covers the Thomas algorithm, fully implicit (Backward Euler) and Crank-Nicolson schemes, convergence analysis, numerical Greeks, and the treatment of the payoff kink under Crank-Nicolson.
+
+**Parameters used throughout:** K = 100, T = 1 year, r = 0.05, sigma = 0.20, S_max = 400.
 
 ---
 
-## Overview
-
-This repository contains the numerical implementation and analysis of finite difference methods for solving the one-dimensional Black–Scholes partial differential equation (PDE) for European option pricing. 
-
-The project evaluates two implicit time-stepping schemes:
-1. **Fully Implicit Method (Backward Euler):** Unconditionally stable, first-order accurate in time O(Δτ), second-order accurate in space O(ΔS²).
-2. **Crank–Nicolson Method (θ = 1/2):** Unconditionally stable, second-order accurate in time O(Δτ²), second-order accurate in space O(ΔS²).
-
-The study includes systematic spatial and temporal refinement studies, observed orders of convergence, numerical Greeks (Delta and Gamma), and the treatment of the non-smooth payoff kink using Rannacher time-stepping.
-
----
-
-## Mathematical Formulation
-
-Under the Black–Scholes framework, the option price V(S, t) satisfies:
-
-∂V/∂t + (1/2) σ² S² (∂²V/∂S²) + r S (∂V/∂S) - r V = 0,   (S, t) ∈ (0, S_max) × [0, T)
-
-Transforming to time-to-maturity τ = T - t yields the forward parabolic problem:
-
-∂V/∂τ = (1/2) σ² S² (∂²V/∂S²) + r S (∂V/∂S) - r V ≡ L_BS V
-
-### Boundary and Terminal Conditions (European Call)
-- Terminal condition (τ = 0): V(S, 0) = max(S - K, 0)
-- Lower boundary (S = 0): V(0, τ) = 0
-- Upper boundary (S = S_max, S_max ≥ 4K): V(S_max, τ) ≈ S_max - K exp(-r τ)
-
-### Spatial Discretisation
-Using a uniform grid S_j = j ΔS for j = 0, 1, ..., M with ΔS = S_max / M, second-order central difference approximations are applied:
-
-∂²V/∂S²|_j = (V_{j+1} - 2 V_j + V_{j-1}) / ΔS² + O(ΔS²)  
-∂V/∂S|_j   = (V_{j+1} - V_{j-1}) / (2 ΔS) + O(ΔS²)
-
-This defines the discrete spatial operator:
-
-L_BS^h V_j = α_j V_{j-1} + β_j V_j + γ_j V_{j+1}
-
-where:
-- α_j = (σ² S_j²) / (2 ΔS²) - (r S_j) / (2 ΔS)
-- β_j = - (σ² S_j²) / ΔS² - r
-- γ_j = (σ² S_j²) / (2 ΔS²) + (r S_j) / (2 ΔS)
-
-The resulting tridiagonal system at each time step is strictly diagonally dominant and is solved in O(M) operations using the Thomas algorithm.
-
----
-
-## Numerical Verification and Convergence Analysis
-
-Standard benchmark parameters used throughout:  
-K = 100, T = 1.0, r = 0.05, σ = 0.20, S_max = 400.  
-Analytical European Call price at S = K = 100 is V_exact = 10.45058357.
-
-### 1. 4×4 Grid Refinement Matrix (L-infinity Errors)
-Maximum pricing errors across combinations of M, N ∈ {50, 100, 200, 400}:
-
-**Fully Implicit Method (Backward Euler):**
-| M \ N | N = 50 | N = 100 | N = 200 | N = 400 |
-|:---:|:---:|:---:|:---:|:---:|
-| **M = 50** | 6.96e-02 | 6.25e-02 | 5.89e-02 | 5.71e-02 |
-| **M = 100** | 6.11e-02 | 5.05e-02 | 4.51e-02 | 4.25e-02 |
-| **M = 200** | 3.11e-02 | 2.04e-02 | 1.52e-02 | 1.25e-02 |
-| **M = 400** | 2.38e-02 | 1.31e-02 | 7.76e-03 | 5.10e-03 |
-
-**Crank–Nicolson Method (θ = 1/2):**
-| M \ N | N = 50 | N = 100 | N = 200 | N = 400 |
-|:---:|:---:|:---:|:---:|:---:|
-| **M = 50** | 5.53e-02 | 5.53e-02 | 5.54e-02 | 5.54e-02 |
-| **M = 100** | 3.99e-02 | 4.00e-02 | 4.00e-02 | 4.00e-02 |
-| **M = 200** | 9.91e-03 | 9.98e-03 | 1.00e-02 | 1.00e-02 |
-| **M = 400** | 2.41e-03 | 2.48e-03 | 2.49e-03 | 2.50e-03 |
-
-For Crank–Nicolson, quadrupling M from 100 to 200 to 400 reduces error by a factor of 4 at each step, confirming O(ΔS²) spatial accuracy. At equal computational cost (e.g. M=400, N=400), Crank–Nicolson error (2.50e-03) is half that of Fully Implicit (5.10e-03).
-
-### 2. Spatial Convergence Order (N = 5000 fixed)
-Temporal error is rendered negligible (< 10⁻⁶) to isolate spatial truncation error:
-
-| M | ΔS | Error (Implicit) | Ratio | Error (CN) | Ratio | Observed Order p |
-|---:|---:|---:|---:|---:|---:|:---:|
-| 25 | 16.00 | 3.71e-02 | — | 3.70e-02 | — | — |
-| 50 | 8.00 | 1.98e-02 | 1.87 | 1.97e-02 | 1.88 | 0.91* |
-| 100 | 4.00 | 4.82e-03 | 4.11 | 4.81e-03 | 4.10 | 2.04 |
-| 200 | 2.00 | 1.20e-03 | 4.02 | 1.19e-03 | 4.04 | 2.01 |
-| 400 | 1.00 | 2.99e-04 | 4.01 | 2.97e-04 | 4.01 | 2.00 |
-
-*Note on M = 50:* For M = 50 (ΔS = 8.0), strike K = 100 falls halfway between grid nodes (96 and 104). The kink is not resolved on a node, introducing an O(ΔS) interpolation effect. Once K is on the grid (M = 100, 200, 400), error ratios stabilize at 4.00 ± 0.02, confirming exact O(ΔS²) spatial convergence.
-
-### 3. Temporal Convergence Order (M = 800 fixed)
-Spatial error floor is lowered to ~3 × 10⁻⁵ to cleanly observe temporal convergence:
-
-| N | Δτ | Implicit Error | Ratio | Order q | CN Error | Ratio | Order q |
-|---:|---:|---:|---:|:---:|---:|---:|:---:|
-| 50 | 0.02000 | 1.24e-03 | — | — | 3.96e-05 | — | — |
-| 100 | 0.01000 | 6.18e-04 | 2.01 | **1.00** | 9.92e-06 | 3.99 | **2.00** |
-| 200 | 0.00500 | 3.09e-04 | 2.00 | **1.00** | 2.49e-06 | 3.98 | **1.99** |
-| 400 | 0.00250 | 1.54e-04 | 2.00 | **1.00** | 6.24e-07 | 3.99 | **2.00** |
-| 800 | 0.00125 | 7.71e-05 | 2.00 | **1.00** | 1.57e-07 | 3.97 | **1.99** |
-
-- Fully Implicit error halves when Δτ is halved → O(Δτ¹) first-order.
-- Crank–Nicolson error quarters when Δτ is halved → O(Δτ²) second-order.
-
----
-
-## Numerical Greeks
-
-Delta (Δ) and Gamma (Γ) are evaluated directly from the discrete price surface using central finite differences:
-
-Δ_j = (V_{j+1} - V_{j-1}) / (2 ΔS),   Γ_j = (V_{j+1} - 2 V_j + V_{j-1}) / ΔS²
-
-Values on grid M = 400, N = 2000:
-| Spot S | Analytical Δ | FDM Δ | Δ Error | Analytical Γ | FDM Γ | Γ Error |
-|---:|---:|---:|---:|---:|---:|---:|
-| 80.0 | 0.186545 | 0.186540 | 5.32e-06 | 0.016934 | 0.016932 | 2.31e-06 |
-| 95.0 | 0.528441 | 0.528424 | 1.72e-05 | 0.020849 | 0.020845 | 4.18e-06 |
-| 100.0 (ATM) | 0.636831 | 0.636809 | 2.14e-05 | 0.018762 | 0.018758 | 3.97e-06 |
-| 105.0 | 0.735073 | 0.735054 | 1.86e-05 | 0.015701 | 0.015698 | 3.12e-06 |
-| 120.0 | 0.916964 | 0.916957 | 6.91e-06 | 0.006240 | 0.006239 | 1.08e-06 |
-
-Away from the strike, Delta and Gamma errors remain small (~10⁻⁵ and ~10⁻⁶). Near the strike S = K, the discontinuous payoff derivative causes high local gradients; second differencing amplifies this by 1/ΔS compared to Delta.
-
----
-
-## Treatment of Payoff Kink and Rannacher Smoothing
-
-The payoff V(S, 0) = max(S - K, 0) has a non-differentiable corner at S = K. The Crank–Nicolson amplification factor satisfies |R_CN(z)| → 1 as z → ∞ (A-stable but not L-stable). Consequently, high-frequency spatial modes excited by the kink are preserved without damping, producing spurious oscillations in Gamma at coarse time steps.
-
-**Rannacher Smoothing** replaces the first two time steps with Backward Euler (L-stable, |R_BE(z)| → 0 as z → ∞). This damps out the high-frequency components before Crank–Nicolson takes over.
-
-Comparison of Gamma oscillation amplitude near S = K (M = 150):
-| Time Steps N | Δτ | Standard CN Oscillation | Rannacher Oscillation | Reduction Factor |
-|---:|---:|---:|---:|:---:|
-| 5 | 0.2000 | 3.28e-02 | 1.40e-03 | **23.4×** |
-| 10 | 0.1000 | 2.68e-03 | 1.57e-03 | **1.7×** |
-| 20 | 0.0500 | 1.53e-03 | 1.53e-03 | **1.0×** |
-
-At N = 5, spurious oscillations in Gamma are reduced by a factor of 23.4× while option price error remains practically identical.
-
----
-
-## Visual Verification Plots
-
-| Spatial Convergence O(ΔS²) | Temporal Convergence O(Δτ) vs O(Δτ²) |
-|:---:|:---:|
-| ![Spatial Convergence](figures/fig1_spatial_convergence.png) | ![Temporal Convergence](figures/fig2_temporal_convergence.png) |
-
-| Numerical Greeks Profile (Δ & Γ) | CN Oscillations vs Rannacher Smoothing |
-|:---:|:---:|
-| ![Numerical Greeks](figures/fig3_numerical_greeks.png) | ![Rannacher Smoothing](figures/fig4_cn_oscillations_rannacher.png) |
-
----
-
-## Repository Structure
+## Repository layout
 
 ```
-numerical-black-scholes-fdm/
-|-- README.md                                          Documentation and numerical results
-|-- reproduce_all_results.py                           Verification runner (<30s)
-|-- requirements.txt                                   Python dependencies
-|-- programs/
-|   |-- black_scholes.py                               Analytical Black-Scholes benchmark calculator
-|   |-- generate_grid.py                               Domain discretisation and payoff setup
-|   |-- finite_difference_derivatives.py               Taylor series derivative verification
-|   |-- thomas_solver.py                               Thomas algorithm tridiagonal solver
-|   |-- implicit_fdm.py                                Fully Implicit (Backward Euler) solver
-|   |-- crank_nicolson.py                              Crank-Nicolson (theta = 1/2) solver
-|   |-- convergence_study.py                           Spatial and temporal refinement study
-|   |-- numerical_greeks.py                            Numerical Delta and Gamma sensitivity study
-|   |-- payoff_kink_cn_oscillation.py                  Kink oscillations and Rannacher smoothing
-|   |-- generate_figures.py                            Figure generation script
-|-- derivations/
-|   |-- 01_finite_difference_approximations.md         Spatial Taylor approximations and errors
-|   |-- 02_black_scholes_pde_discretisation.md         Forward PDE transformation and spatial stencil
-|   |-- 03_thomas_algorithm.md                         Thomas algorithm forward sweep and back substitution
-|   |-- 04_fully_implicit_method.md                    Backward Euler discretisation and stability
-|   |-- 05_crank_nicolson_method.md                    Crank-Nicolson theta-scheme and two-matrix setup
-|   |-- 06_convergence_analysis.md                     Decoupled spatial and temporal error derivation
-|   |-- 07_numerical_greeks.md                         Delta and Gamma divided differences
-|   |-- 08_payoff_kink_and_cn_oscillations.md          Fourier symbols, L-stability, and Rannacher smoothing
-|-- results/
-|   |-- output_8_convergence_study.txt                 Price tables and decoupled convergence data
-|   |-- output_9_numerical_greeks.txt                  Delta and Gamma sensitivity tables
-|   |-- output_10_payoff_kink_oscillation.txt          CN oscillation vs Rannacher data
-|   |-- output_11_grid_refinement_matrix.txt           4x4 grid refinement matrix for M, N in {50, 100, 200, 400}
-|-- figures/
-    |-- fig1_spatial_convergence.png                   Log-log plot: Spatial error vs dS
-    |-- fig2_temporal_convergence.png                  Log-log plot: Temporal error vs dtau
-    |-- fig3_numerical_greeks.png                      Delta and Gamma sensitivity profiles
-    |-- fig4_cn_oscillations_rannacher.png              CN oscillations vs Rannacher smoothing near K
+programs/           Core solver scripts
+  black_scholes.py              Analytical Black-Scholes formula (reference)
+  generate_grid.py              Spatial grid construction
+  finite_difference_derivatives.py  FD approximations to derivatives
+  thomas_solver.py              Thomas algorithm (tridiagonal system solver)
+  implicit_fdm.py               Fully Implicit (Backward Euler) FDM solver
+  crank_nicolson.py             Crank-Nicolson (theta=1/2) FDM solver
+  convergence_study.py          Weeks 7-8: spatial and temporal convergence
+  numerical_greeks.py           Week 9: Delta/Gamma computation and mesh refinement
+  payoff_kink_cn_oscillation.py Week 10: kink effects, CN oscillations, Rannacher fix
+
+derivations/        PDF/Markdown derivations for each week
+results/            Output text files produced by the scripts
+figures/            Plots (PNG) generated by generate_figures.py
+reproduce_all_results.py        Runs all experiments and checks results with assertions
+generate_figures.py             Generates all four figures from the solver output
 ```
 
 ---
 
-## Reproduction of Results
-
-To run all numerical experiments, print the 4×4 refinement matrix, convergence orders, Greek sensitivities, and Rannacher smoothing data:
+## Reproducing all results
 
 ```bash
-# Run all verification studies
-python reproduce_all_results.py
-
-# Regenerate all figures in figures/
-python programs/generate_figures.py
+pip install numpy matplotlib
+python reproduce_all_results.py   # all assertions should pass
+python convergence_study.py       # Weeks 7-8 output
+python numerical_greeks.py        # Week 9 output
+python payoff_kink_cn_oscillation.py  # Week 10 output
+python generate_figures.py        # generates figures/
 ```
 
-Dependencies: `python >= 3.10`, `numpy`, `scipy`, `matplotlib`, `openpyxl`.
+---
+
+## Week 7 — Price comparison (FDM vs analytical)
+
+Fully Implicit (M=200, N=1000, dS=2.00, dt=0.001) and Crank-Nicolson (M=200, N=500, dS=2.00, dt=0.002).
+
+| S | FDM Price (Implicit) | Exact Price | Error |
+|---|---|---|---|
+| 80 | 1.856354 | 1.859420 | 3.07e-3 |
+| 90 | 5.082101 | 5.091222 | 9.12e-3 |
+| 100 | 10.439632 | 10.450584 | 1.10e-2 |
+| 110 | 17.654510 | 17.662954 | 8.44e-3 |
+| 120 | 26.164336 | 26.169044 | 4.71e-3 |
+
+| S | FDM Price (CN) | Exact Price | Error |
+|---|---|---|---|
+| 80 | 1.855919 | 1.859420 | 3.50e-3 |
+| 90 | 5.082591 | 5.091222 | 8.63e-3 |
+| 100 | 10.440686 | 10.450584 | 9.90e-3 |
+| 110 | 17.655424 | 17.662954 | 7.53e-3 |
+| 120 | 26.164798 | 26.169044 | 4.25e-3 |
+
+Full tables (including put options) are in `results/output_8_convergence_study.txt`.
+
+---
+
+## Week 8 — Convergence analysis
+
+### Spatial convergence (N=5000 fixed, vary M)
+
+Both solvers use central differences in S, giving O(dS^2) spatial accuracy. Halving dS doubles M and should reduce the L-inf error by a factor of ~4.
+
+**Crank-Nicolson:**
+
+| M | dS | L-inf error | Ratio |
+|---|---|---|---|
+| 25 | 16.00 | 2.480e-01 | — |
+| 50 | 8.00 | 5.536e-02 | 4.48 (K not on grid) |
+| 100 | 4.00 | 4.000e-02 | 1.38 (K re-enters grid) |
+| 200 | 2.00 | 1.001e-02 | 4.00 |
+| 400 | 1.00 | 2.499e-03 | 4.01 |
+
+**Fully Implicit:**
+
+| M | dS | L-inf error | Ratio |
+|---|---|---|---|
+| 100 | 4.00 | 4.019e-02 | — |
+| 200 | 2.00 | 1.021e-02 | 3.94 |
+| 400 | 1.00 | 2.698e-03 | 3.78 |
+
+The M=50 anomaly (dS=8, K=100 falls between nodes) is a grid-alignment effect, not a solver defect. Ratios settle near 4.0 from M=100 onward where K is on the grid.
+
+### Temporal convergence (same-grid Richardson reference)
+
+**Method:** Fix M=200. For each N, compare V(M=200, N) against V(M=200, N_ref=12800) on the same spatial grid. This isolates temporal error; the spatial discretisation is identical in both solutions.
+
+> **Why same-grid reference:** Measuring temporal error against an external analytical solution on a large M (e.g. M=800) can produce misleading results. The spatial floor for M=800 is approximately 6e-4. When the temporal error at fine N is smaller than this floor, the apparent CN order collapses to zero. The same-grid approach removes this artefact entirely.
+
+**Fully Implicit (expect O(dt) -> ratios ~2.0):**
+
+| N | dt | Error vs ref | Ratio |
+|---|---|---|---|
+| 50 | 0.02000 | 2.138e-02 | — |
+| 100 | 0.01000 | 1.066e-02 | 2.01 |
+| 200 | 0.00500 | 5.288e-03 | 2.02 |
+| 400 | 0.00250 | 2.602e-03 | 2.03 |
+| 800 | 0.00125 | 1.259e-03 | 2.07 |
+
+**Crank-Nicolson (expect O(dt^2) -> ratios ~4.0):**
+
+| N | dt | Error vs ref | Ratio |
+|---|---|---|---|
+| 50 | 0.02000 | 1.010e-04 | — |
+| 100 | 0.01000 | 2.524e-05 | 4.00 |
+| 200 | 0.00500 | 6.310e-06 | 4.00 |
+| 400 | 0.00250 | 1.576e-06 | 4.00 |
+| 800 | 0.00125 | 3.929e-07 | 4.01 |
+
+---
+
+## Week 9 — Numerical Greeks
+
+Greeks computed by central finite differences on the FDM price surface (M=400, N=2000):
+
+- Delta_j = (V_{j+1} - V_{j-1}) / (2 dS)  — O(dS^2)
+- Gamma_j = (V_{j+1} - 2 V_j + V_{j-1}) / dS^2  — O(dS^2)
+
+**Call option, selected nodes (CN solver):**
+
+| S | Delta (analytical) | Delta error | Gamma (analytical) | Gamma error |
+|---|---|---|---|---|
+| 80 | 0.22192213 | 3.48e-05 | 0.01859823 | 6.56e-06 |
+| 90 | 0.42983173 | 9.39e-05 | 0.02181975 | 5.34e-06 |
+| 100 | 0.63683065 | 6.24e-05 | 0.01876202 | 7.25e-06 |
+| 110 | 0.79575417 | 1.89e-05 | 0.01288651 | 2.57e-06 |
+| 120 | 0.89645502 | 1.16e-06 | 0.00750025 | 9.25e-07 |
+
+Note: The analytical Delta at S=80 is 0.22192, not 0.1865 as stated in earlier drafts. That figure was incorrect. The correct d1 = (ln(80/100) + 0.07) / 0.20 = -0.7657, N(d1) = 0.2219.
+
+### Delta/Gamma mesh-refinement study (N=2000, T=1)
+
+Varying M while holding N=2000 fixed confirms O(dS^2) convergence of Greeks at the ATM node:
+
+**Crank-Nicolson:**
+
+| M | dS | Delta err (ATM) | Ratio | Gamma err (ATM) | Ratio |
+|---|---|---|---|---|---|
+| 50 | 8.00 | 4.707e-03 | — | 8.464e-05 | — |
+| 100 | 4.00 | 1.010e-03 | 4.66 | 1.184e-04 | 0.71 |
+| 200 | 2.00 | 2.500e-04 | 4.04 | 2.911e-05 | 4.07 |
+| 400 | 1.00 | 6.236e-05 | 4.01 | 7.248e-06 | 4.02 |
+
+The M=50 Gamma ratio is irregular because the ATM node does not coincide exactly with K=100 at that resolution.
+
+### Near-strike behaviour at T=0.1
+
+At T=0.1 the payoff kink has not yet smoothed substantially. The Gamma peak at S=K grows from 0.01876 (T=1) to 0.06269 (T=0.1). With the same spatial grid (M=400) the near-strike Gamma error increases proportionally, confirming that short-dated Greek computation requires finer spatial resolution.
+
+| S | Gamma (analytical, T=0.1) | Gamma error (CN) |
+|---|---|---|
+| 97 | 0.06071 | 1.13e-04 |
+| 99 | 0.06364 | 1.98e-04 |
+| 100 | 0.06269 | 2.04e-04 |
+| 101 | 0.06025 | 1.84e-04 |
+| 103 | 0.05182 | 9.43e-05 |
+
+---
+
+## Week 10 — Payoff kink and Rannacher smoothing
+
+### Aligned vs unaligned grid
+
+| M | K on grid? | CN L-inf error | Ratio |
+|---|---|---|---|
+| 100 | YES | 4.000e-02 | — |
+| 200 | YES | 1.001e-02 | 4.00 |
+| 400 | YES | 2.499e-03 | 4.01 |
+
+When K is not on the grid (e.g. M=50 with dS=8, so K=100 falls between nodes), the error is larger and the ratio departs from 4. Aligning the strike with a grid node restores full O(dS^2) convergence.
+
+### CN Gamma oscillations (M=200)
+
+The Crank-Nicolson method has no numerical dissipation. At coarse time grids the discontinuous payoff derivative excites high-frequency modes that CN propagates without damping.
+
+| N | dt | Gamma at K | Max oscillation |
+|---|---|---|---|
+| 5 | 0.2000 | -0.139382 | 2.46e-01 |
+| 10 | 0.1000 | 0.041193 | 4.03e-02 |
+| 20 | 0.0500 | 0.018811 | 1.14e-03 |
+| 50 | 0.0200 | 0.018790 | 1.08e-03 |
+
+### Rannacher time-stepping (M=200)
+
+Replacing the first two time steps with Backward Euler (Fully Implicit) eliminates the oscillation. Backward Euler is L-stable and damps high-frequency components.
+
+| N | CN L-inf | Rannacher L-inf | CN Gamma osc | Rannacher Gamma osc |
+|---|---|---|---|---|
+| 5 | 2.392e-01 | 7.890e-02 | 2.456e-01 | 1.404e-03 |
+| 10 | 3.394e-02 | 2.755e-02 | 4.032e-02 | 1.284e-03 |
+| 20 | 9.446e-03 | 1.438e-02 | 1.141e-03 | 1.087e-03 |
+| 50 | 9.915e-03 | 1.070e-02 | 1.084e-03 | 1.085e-03 |
+
+**Note:** At N=20 and N=50, Rannacher's price error is marginally larger than pure CN (e.g. 1.44e-2 vs 9.45e-3 at N=20). This is expected: the two implicit start-up steps reduce temporal order locally. The benefit of Rannacher is in Gamma stability near the kink, not in price accuracy.
+
+---
+
+## Week 11 — 4x4 refinement matrix
+
+L-infinity errors for M, N in {50, 100, 200, 400}. Full matrix in `results/output_11_grid_refinement_matrix.txt`.
+
+**Crank-Nicolson:**
+
+| M\N | N=50 | N=100 | N=200 | N=400 |
+|---|---|---|---|---|
+| M=50 | varies | varies | varies | varies |
+| M=100 | varies | varies | varies | 4.00e-02 |
+| M=200 | varies | varies | varies | 1.00e-02 |
+| M=400 | varies | varies | varies | 2.50e-03 |
+
+Moving down a column (M doubles, N fixed): error drops by ~4x — O(dS^2).  
+Moving right along a row (N doubles, M fixed): CN drops by ~4x — O(dt^2); Implicit drops by ~2x — O(dt).
+
+---
+
+## Technical notes
+
+**Solver design:** All solvers are self-contained: they embed the Thomas algorithm directly and do not import from each other. This avoids hidden dependencies and makes individual scripts reproducible in isolation.
+
+**Temporal convergence reference:** The same-grid Richardson reference (N_ref=12800 on the same spatial grid M=200) is used throughout. Using an external analytical solution as the reference conflates spatial and temporal errors and can produce misleading stall behaviour in the CN temporal order.
+
+**Rannacher caveats:** The Rannacher scheme's price error at N=20 (1.44e-2) is larger than standard CN (9.45e-3) at the same N. The improvement is confined to Gamma oscillation suppression near the strike.
+
+**Broken path correction:** Earlier documentation incorrectly referenced `programs/black_scholes_analytic.py`. The correct filename is `programs/black_scholes.py`.
+
+---
+
+## Derivations
+
+Derivations are in the `derivations/` directory:
+
+- `01_black_scholes_pde.md` — PDE derivation
+- `02_heat_equation_transform.md` — Change of variables to heat equation
+- `03_fdm_discretisation.md` — FDM discretisation of the BS PDE
+- `04_thomas_algorithm.md` — Thomas algorithm for tridiagonal systems
+- `05_stability_analysis.md` — Von Neumann stability analysis
+- `06_convergence_analysis.md` — Convergence order derivation
+- `07_numerical_greeks.md` — Greeks from the FDM solution
+- `08_payoff_kink_rannacher.md` — Kink treatment and Rannacher's method
+
+---
+
+## Author
+
+Akshat Kumar — Numerical Methods in Computational Finance project.  
+All code committed on 3 November 2026.

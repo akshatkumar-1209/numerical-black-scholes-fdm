@@ -338,8 +338,8 @@ def main():
 
     print("\n" + "=" * 72)
     print("  ALL ASSERTIONS PASSED")
-    print("  Spatial order: CN ~4.0 (O(dS^2)), Implicit ~4.0 (O(dS^2))")
-    print("  Temporal order: CN ~4.0 (O(dt^2)), Implicit ~2.0 (O(dt))")
+    print("  Spatial error ratios: CN ~4.0, Implicit ~3.8-3.9 on controlled M=100..400 range")
+    print("  Temporal error ratios: CN ~4.0 (second order), Implicit ~2.0 (first order)")
     print("  [same-grid Richardson reference used for temporal study]")
     print("=" * 72)
 

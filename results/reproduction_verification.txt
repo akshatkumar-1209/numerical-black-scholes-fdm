@@ -37,7 +37,7 @@
 
 ========================================================================
   ALL ASSERTIONS PASSED
-  Spatial order: CN ~4.0 (O(dS^2)), Implicit ~4.0 (O(dS^2))
-  Temporal order: CN ~4.0 (O(dt^2)), Implicit ~2.0 (O(dt))
+  Spatial error ratios: CN ~4.0, Implicit ~3.8-3.9 on controlled M=100..400 range
+  Temporal error ratios: CN ~4.0 (second order), Implicit ~2.0 (first order)
   [same-grid Richardson reference used for temporal study]
 ========================================================================
